@@ -1,7 +1,8 @@
-
 struct Inode{
   int size;
   int ** pointers;
   int nextInodePointer;
 }
-readInode(char * filename);
+Inode * readInode(char * filename);
+
+void writeInode(int block, Inode * inode);
