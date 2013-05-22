@@ -1,10 +1,10 @@
-struct InodeStruct{
+struct Inode
   int size;
   int ** pointers;
   int nextInodePointer;
 };
 
-typedef struct Inode *InodeStruct;
+typedef struct Inode *Inode;
 
 Inode * readInode(int block);
 
