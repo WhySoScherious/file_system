@@ -1,4 +1,4 @@
-struct Inode
+struct Inode{
   int size;
   int ** pointers;
   int nextInodePointer;
