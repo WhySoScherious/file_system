@@ -6,9 +6,11 @@ struct Inode{
 
 typedef struct Inode *Inode;
 
-Inode * readInode(int block);
+Inode readInode(int block);
 
 void writeInode(int block, Inode inode);
+
+Inode createInode(int size, int ** pointers);
 
 void write_super_block(disk_t disk);
 
