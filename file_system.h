@@ -6,6 +6,6 @@ struct Inode{
 
 typedef struct Inode *Inode;
 
-Inode * readInode(char * filename);
+Inode * readInode(int * block);
 
-void writeInode(int block, Inode * inode);
+void writeInode(int * block, Inode * inode);
