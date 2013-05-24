@@ -31,4 +31,4 @@ sdisk: makedisk
 	./makedisk sdisk 256
 
 clean:
-	rm -f sdisk *.o makedisk testdisk *~
+	rm -f sdisk *.o myformat makedisk testdisk *~
