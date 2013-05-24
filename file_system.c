@@ -29,31 +29,55 @@ int str2int(char *s){
    return n/10;
 }
 
-/* Copies a string of arbitrary length into a fixed length databuffer.
+/* Returns the length of a string
+*/
+int length(char *s){
+  int i;
+  for(i=0;s[i]!='\0';++i);
+  return i;
+}
+
+/* Copies a stringa of arbitrary length into a fixed length databuffer.
  * Pass in a buffer that has already been malloc'd to block size:
  *    unsigned char *databuf = malloc(disk->block_size);
+ * The second is an array of strings to be copied where
+ * THE LAST STRING MUST BE A NULL!!!!!
  * The final parameter represents how many bytes into the buffer you
  * wish to put your string.
- * Only for test purposes.
+ * See write_super_block for an example.
 */
-void copy2buf(unsigned char *databuf, unsigned char *string, int loc){
-   int i;
-   for(i=0;string[i]!='\0';++i,++loc) databuf[loc] = string[i];
+void copy2buf(unsigned char *databuf, unsigned char **strings, int loc){
+   int i,j;
+   for(i=0;strings[i]!=NULL;++i)
+      for(j=0;strings[i][j]!='\0';++j,++loc) databuf[loc] = strings[i][j];
 }
 
 void write_super_block(disk_t disk){
    printf("Writing super block...");
    unsigned char *databuf = malloc(disk->block_size);
-   unsigned char *string = "\nSuper Block Starts Here:\nps512\n";
-   copy2buf(databuf,string,0);
+   int i=0;
+   unsigned char *strings[10];
+   strings[0] = "\nSuper Block Starts Here:\nSize: ";
+   strings[1] = int2str(disk->size);
+   strings[2] = "\nLocations:\n   Free Block Map: ";
+   strings[3] = int2str(FREEBLOCK);
+   strings[4] = "\n   Root Directory: ";
+   strings[5] = int2str(ROOTBLOCK);
+   strings[6] = "\n   Data Block: ";
+   strings[7] = "?";
+   strings[8] = "\n";
+   strings[9] = NULL;
+   copy2buf(databuf,strings,0);
    writeblock(disk,SUPERBLOCK,databuf);
    printf("\n");
 }
 
 void write_root_dir(disk_t disk){
-
+   printf("Writing root directory...");
+   printf("\n");
 }
 
 void write_block_map(disk_t disk){
-
+   printf("Writing free block map...");
+   printf("\n");
 }
