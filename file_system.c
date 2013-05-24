@@ -9,6 +9,15 @@
 #define ROOTBLOCK 1
 #define FREEBLOCK 2
 
+/*Converts a decimal number into a binary string
+ * Takes a number n and how many bits wide the number is w.
+*/
+char *int2binstr(unsigned int n, int w){
+   int i;
+   char *s = malloc(sizeof(char)*w);
+   for(i=0;w>=0;++i,--w) s[i] = ((n&(1<<w))>0)?'1':'0';
+   return s;
+}
 
 /* Converts a decimal number (max 64 digits long) into a string
 */
