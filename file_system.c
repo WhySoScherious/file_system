@@ -2,17 +2,19 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
+#include <math.h>
 #include "file_system.h"
-#include "mydisk.h"
+//#include "mydisk.h"
 
 #define SUPERBLOCK 0
 #define ROOTBLOCK 1
 #define FREEBLOCK 2
 
 /*Converts a decimal number into a binary string
- * Takes a number n and how many bits wide the number is w.
+ * Takes a number n
 */
-char *int2binstr(unsigned int n, int w){
+char *int2binstr(unsigned int n){
+   int w = ceil(log2(n));
    int i;
    char *s = malloc(sizeof(char)*w);
    for(i=0;w>=0;++i,--w) s[i] = ((n&(1<<w))>0)?'1':'0';
@@ -79,6 +81,14 @@ void write_super_block(disk_t disk){
    copy2buf(databuf,strings,0);
    writeblock(disk,SUPERBLOCK,databuf);
    printf("\n");
+}
+
+Inode* createInode(int size, int ** pointers, int * block){
+   Inode* node = malloc(sizeof(Inode));
+	node->size = size;
+	node->pointers = pointers;
+	node->nextInodePointer = block;
+
 }
 
 void write_root_dir(disk_t disk){
