@@ -99,4 +99,33 @@ void write_root_dir(disk_t disk){
 void write_block_map(disk_t disk){
    printf("Writing free block map...");
    printf("\n");
+   char *disk_name;
+   unsigned char *databuf;
+   /* disk with n blocks requires a bitmap with n bits
+   bitmap size is enough blocks to hold n bits, starts at block 2 */
+   int *bitmap;
+   
+   disk = opendisk(disk_name);
+   
+   bitmap = malloc(disk->block_size * 8);
+   
+   databuf = malloc(disk->block_size);
+
+   
+   /*Initially every entry in bitmap is 0(unsused)*/
+   for(i = 0; i< disk->size; i++){
+   		
+   		for(j = 0; j< bitmap; j++){
+   			bitmap[j] = 0;
+
+   writeblock(disk, i, bitmap);
+   }
+   
+/* include the superblock, root directory, and bitmap blocks in the bitmap. 
+That will make the block numbers correspond to the blocks on your "disk".*/
+
+/*mark superblock and root dir as used*/
+
+
+
 }
