@@ -99,6 +99,7 @@ void write_root_dir(disk_t disk){
 void write_block_map(disk_t disk){
    printf("Writing free block map...");
    printf("\n");
+   int i,j;
    char *disk_name;
    unsigned char *databuf;
    /* disk with n blocks requires a bitmap with n bits
