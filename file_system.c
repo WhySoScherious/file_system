@@ -121,8 +121,13 @@ char * intArray2charArray(int * numbers){
 	return  s;
 }
 
-Inode* writeInode(disk_t disk, int block, int * pointers,bool directory){
-	int size = sizeof(pointers)/sizeof(int);
+Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory){
+	int size = sizeof(gpointers)/sizeof(int);
+	int * pointers = malloc(sizeof(int) * size);
+	int i;
+	for(i = 0; i < size; i+=1){
+		pointers[i] = gpointers[i];
+	}
 	if(size < (disk->block_size-2-(ceil(log10(disk->size))*2)/(ceil(log10(disk->size))+1))){
 		unsigned char *strings[4];
 		strings[0] = (directory)? "0" : int2str(size);
@@ -141,7 +146,7 @@ Inode* writeInode(disk_t disk, int block, int * pointers,bool directory){
 		free(list);
 		free(pntrs);
 	}else{
-		//need to read from tree map to find more room to put extra Inode
+		//need to read from free block map to find more room to put extra Inode
 	}
 	return createInode(size,pointers,directory,block);
 }
