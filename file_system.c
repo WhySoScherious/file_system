@@ -151,6 +151,11 @@ Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory){
 	return createInode(size,pointers,directory,block);
 }
 
+void freeInode(Inode * inode){
+	free(inode->pointers);
+	free(inode);
+}
+
 void write_root_dir(disk_t disk){
    printf("Writing root directory...");
    printf("\n");
