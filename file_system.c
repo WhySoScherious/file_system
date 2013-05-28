@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <math.h>
+#include <string.h>
 #include "file_system.h"
 //#include "mydisk.h"
 
@@ -161,10 +162,10 @@ void write_root_dir(disk_t disk){
    printf("\n");
 }
 
-void write_block_map(disk_t disk){
+void write_block_map(disk_t disk, int * bmap){
    printf("Writing free block map...");
    printf("\n");
-   int i,j;
+   int i;
    char *disk_name;
    unsigned char *databuf;
    /* disk with n blocks requires a bitmap with n bits
@@ -173,19 +174,23 @@ void write_block_map(disk_t disk){
    
    disk = opendisk(disk_name);
    
-   bitmap = malloc(disk->block_size * 8);
    
    databuf = malloc(disk->block_size);
 
    
    /*Initially every entry in bitmap is 0(unsused)*/
-   for(i = 0; i< disk->size; i++){
-   		
-   		for(j = 0; j< bitmap; j++){
-   			bitmap[j] = 0;
-
-   writeblock(disk, i, bitmap);
+	
+   int bitmapindex = 0;
+   for(i = 2; bmap[bitmapindex] != '\0';i+=1){
+	   int bufindex = 0;
+	   while(bufindex < disk->block_size && bmap[bitmapindex] != '\0'){
+			databuf[bufindex] = (bitmap[i] == 0)? "0" : "1";
+			bufindex +=1;
+			bitmapindex +=1;
+	   }
+	   writeblock(disk,i,databuf);
    }
+   free(databuf);
    
 /* include the superblock, root directory, and bitmap blocks in the bitmap. 
 That will make the block numbers correspond to the blocks on your "disk".*/
