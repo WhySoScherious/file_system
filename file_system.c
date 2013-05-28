@@ -83,12 +83,66 @@ void write_super_block(disk_t disk){
    printf("\n");
 }
 
-Inode* createInode(int size, int ** pointers, int * block){
-   Inode* node = malloc(sizeof(Inode));
+// Inodes which represent directories should be size = 0, pointers will be to other inodes
+// the max # of pointers is (BLOCK_SIZE-3-(ceil(log10(disk_size))*2)/(ceil(log10(disk_size))+1) 
+// if you have more pointers than that, then it is your job to create an Inode with the remaining
+// pointers, write the inode, and then give the block location of that inode to the previous Inode.
+// Additional inodes should have size = to the number of blocks in them
+Inode* createInode(int size, int * pointers,bool directory){
+	Inode* node = malloc(sizeof(Inode));
 	node->size = size;
 	node->pointers = pointers;
-	node->nextInodePointer = block;
+	node->isDirectory = directory;
+	return node;
+}
 
+//turns a list of ints into a char array of numbers separated by commas. Will end in a comma.
+//needs to be freed
+char * intArray2charArray(int * numbers){
+	char * str = malloc(sizeof(char) * 512);
+	int num = numbers[0];
+	int i = 0;
+	while(num != '\0'){
+		char * num2str = int2str(num);
+		strcat(str,int2str(num));
+		free(num2str);
+		strcat(str,",");
+		num = numbers[i+1];
+		i +=1;
+	}
+	char *s = malloc(sizeof(char) * length(str));
+	for(i = 0; str[i] != '\0';i+=1){
+		s[i] = str[i];
+	}
+	
+	s[i] = '\0'; //cpy '\0';
+	free(str);
+	return  s;
+}
+
+Inode* writeInode(disk_t disk, int block, int * pointers,bool directory){
+	int size = sizeof(pointers)/sizeof(int);
+	if(size < (disk->block_size-2-(ceil(log10(disk->size))*2)/(ceil(log10(disk->size))+1))){
+		unsigned char *strings[4];
+		strings[0] = (directory)? "0" : int2str(size);
+		char * list = intArray2charArray(pointers);
+		char * pntrs = malloc(sizeof(char) * (length(list)+1));
+		pntrs[0] = '\n';
+		pntrs[1] = '\0';
+		strcat(pntrs,list);
+		strings[1] = pntrs;
+		strings[2] = "\n";
+		strings[3] = NULL;
+		unsigned char *databuf = malloc(disk->block_size);
+		copy2buf(databuf,strings,0);
+		writeblock(disk,block,databuf);
+		free(databuf);
+		free(list);
+		free(pntrs);
+	}else{
+		//need to read from block map to find more room to put extra Inode
+	}
+	return createInode(size,pointers,directory);
 }
 
 void write_root_dir(disk_t disk){
