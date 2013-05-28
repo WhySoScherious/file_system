@@ -29,7 +29,7 @@ Inode* readInode(disk_t disk, int block);
 //Inode must be freed.
 Inode* writeInode(disk_t disk, int block, int * pointers,bool directory);
 
-//will completely remove, and then rewrite the new Inode.
+//will completely remove, and then write the updated Inode in the old location
 void rewriteInode(disk_t disk, Inode* inode);
  
 //will safely remove Inode and all pointers;
