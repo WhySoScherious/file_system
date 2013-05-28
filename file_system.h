@@ -28,9 +28,9 @@ Inode* readInode(disk_t disk, int block);
 //Inode must be freed.
 Inode* writeInode(disk_t disk, int block, int * pointers,bool directory);
 
-InodeRemovePointer(disk_t disk, Inode * inode, int block_pointer);
+void inodeRemovePointer(disk_t disk, Inode * inode, int block_pointer);
 
-InodeAddPointer(disk_t disk, Inode * inode, int block_pointer);
+void inodeAddPointer(disk_t disk, Inode * inode, int block_pointer);
  
 //will safely remove Inode and all pointers;
 void deleteInode(disk_t disk, int block);
