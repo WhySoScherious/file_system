@@ -1,7 +1,8 @@
-﻿#include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "mydisk.h"
+//#include "mydisk.h" //already in file_system.h
+#include "file_system.h"
 
 void main(int argc, char *argv[])
 {
@@ -23,6 +24,16 @@ void main(int argc, char *argv[])
 
   // Set up a buffer for writing and reading
   databuf = malloc(disk->block_size);
+
+  //test InodeWrite
+    printf("\nWriting Inode\n");
+  int pointers[3] = {1,2,3};
+  Inode* node = writeInode(disk, 3, pointers,true);
+
+  //read the Inode;
+  readblock(disk, 3, databuf);
+  printf(databuf);
+  printf("\nEnd Inode\n");
 
   // Write some blocks
   printf("Writing some blocks...");
