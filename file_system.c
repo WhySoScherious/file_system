@@ -178,13 +178,16 @@ void write_block_map(disk_t disk, int * bmap){
    databuf = malloc(sizeof(char) * disk->block_size);
 
    
-   /*Initially every entry in bitmap is 0(unsused)*/
-	
+   /*Initially every entry in bitmap is 0(unsused) 
+   Chase: This is not true: the superblock, rootdir and bitmap blocks should all be filled with 1s. 
+   To make this function work in more than one case it should just write the bmap given, 
+   and the user can fill it with 0s and 1s to start*/
+	//i = block number
    int bitmapindex = 0;
    for(i = 2; bmap[bitmapindex] != '\0';i+=1){
 	   int bufindex = 0;
 	   while(bufindex < disk->block_size && bmap[bitmapindex] != '\0'){
-			databuf[bufindex] = (bitmap[i] == 0)? "0" : "1";
+			databuf[bufindex] = (bmap[bitmapindex] == 0)? "0" : "1";
 			bufindex +=1;
 			bitmapindex +=1;
 	   }
