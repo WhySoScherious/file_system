@@ -32,10 +32,10 @@ Inode* writeInode(disk_t disk, int block, int * pointers,bool directory);
 //will completely remove, and then write the updated Inode in the old location
 void rewriteInode(disk_t disk, Inode* inode);
  
-//will safely remove Inode and all pointers;
-void deleteInode(disk_t disk, int block);
+//will safely remove Inode
+void deleteInode(disk_t disk, Inode* inode);
 
-//do not write inode after freeing
+//Conveniency Method, frees pointers, and then Inode
 void freeInode(Inode * inode);
 
 void write_super_block(disk_t disk);
