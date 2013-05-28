@@ -88,11 +88,12 @@ void write_super_block(disk_t disk){
 // if you have more pointers than that, then it is your job to create an Inode with the remaining
 // pointers, write the inode, and then give the block location of that inode to the previous Inode.
 // Additional inodes should have size = to the number of blocks in them
-Inode* createInode(int size, int * pointers,bool directory){
+Inode* createInode(int size, int * pointers,bool directory, int block){
 	Inode* node = malloc(sizeof(Inode));
 	node->size = size;
 	node->pointers = pointers;
 	node->isDirectory = directory;
+	node->block = block;
 	return node;
 }
 
@@ -140,9 +141,9 @@ Inode* writeInode(disk_t disk, int block, int * pointers,bool directory){
 		free(list);
 		free(pntrs);
 	}else{
-		//need to read from block map to find more room to put extra Inode
+		//need to read from tree map to find more room to put extra Inode
 	}
-	return createInode(size,pointers,directory);
+	return createInode(size,pointers,directory,block);
 }
 
 void write_root_dir(disk_t disk){
