@@ -175,7 +175,7 @@ void write_block_map(disk_t disk, int * bmap){
    disk = opendisk(disk_name);
    
    
-   databuf = malloc(disk->block_size);
+   databuf = malloc(sizeof(char) * disk->block_size);
 
    
    /*Initially every entry in bitmap is 0(unsused)*/
@@ -187,6 +187,9 @@ void write_block_map(disk_t disk, int * bmap){
 			databuf[bufindex] = (bitmap[i] == 0)? "0" : "1";
 			bufindex +=1;
 			bitmapindex +=1;
+	   }
+	   if(bmap[bitmapindex] == '\0' && bufindex < disk->block_size){
+			databuf[bufindex] = '\0'; //terminate
 	   }
 	   writeblock(disk,i,databuf);
    }
