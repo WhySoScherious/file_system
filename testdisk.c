@@ -25,7 +25,7 @@ void main(int argc, char *argv[])
   // Set up a buffer for writing and reading
   databuf = malloc(disk->block_size);
 
-  //test InodeWrite
+  //test writing inode
     printf("\nWriting Inode\n");
   int pointers[3] = {1,2,3};
   Inode* node = writeInode(disk, 3, pointers,true);
@@ -33,6 +33,7 @@ void main(int argc, char *argv[])
   //read the Inode;
   readblock(disk, 3, databuf);
   printf(databuf);
+  freeInode(node);
   printf("\nEnd Inode\n");
 
   // Write some blocks
