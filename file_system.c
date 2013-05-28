@@ -187,7 +187,7 @@ void write_block_map(disk_t disk, int * bmap){
    for(i = 2; bmap[bitmapindex] != '\0';i+=1){
 	   int bufindex = 0;
 	   while(bufindex < disk->block_size && bmap[bitmapindex] != '\0'){
-			databuf[bufindex] = (bmap[bitmapindex] == 0)? "0" : "1";
+			databuf[bufindex] = (bmap[bitmapindex] == 0)? '0' : '1';
 			bufindex +=1;
 			bitmapindex +=1;
 	   }
