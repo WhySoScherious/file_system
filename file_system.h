@@ -19,6 +19,7 @@ typedef struct Inode{
 } Inode;
 
 
+//block location on disk of Inode.
 Inode* readInode(disk_t disk, int block);
 
 //disk: disk to write to
@@ -28,9 +29,8 @@ Inode* readInode(disk_t disk, int block);
 //Inode must be freed.
 Inode* writeInode(disk_t disk, int block, int * pointers,bool directory);
 
-void inodeRemovePointer(disk_t disk, Inode * inode, int block_pointer);
-
-void inodeAddPointer(disk_t disk, Inode * inode, int block_pointer);
+//will completely remove, and then rewrite the new Inode.
+void rewriteInode(disk_t disk, Inode* inode);
  
 //will safely remove Inode and all pointers;
 void deleteInode(disk_t disk, int block);
