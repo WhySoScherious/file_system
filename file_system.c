@@ -158,6 +158,47 @@ int arrayLength(int * intarray){
 	return i;
 }
 
+Inode * rewriteInode(disk_t disk, Inode* inode){
+	deleteInode(disk,inode);
+	Inode* newinode = writeInode(disk,inode->block,inode->pointers,inode->isDirectory);
+	freeInode(inode);
+	return newinode;
+}
+
+void deleteInode(disk_t disk, Inode* inode){
+	  char * databuf = malloc(sizeof(char) * disk->block_size);
+  readblock(disk,inode->block,databuf);
+  int i;
+  bool gotsize = false;
+  bool gotpointers = false;
+  bool gotlink = false;
+  int numberbufIndex = 0;
+  char * numberbuf = malloc(sizeof(char) * 16);
+  for(i = 0; databuf[i] != '\0' && i < disk->block_size;i+=1){
+    if(!gotsize){
+      if(databuf[i] == '\n'){
+        gotsize = true;
+      }
+    }else if(!gotpointers){
+      if(databuf[i] == '\n'){
+        gotpointers = true; 
+      }
+    }else{
+      gotlink = true;
+      numberbuf[numberbufIndex] = databuf[i];
+      numberbufIndex +=1;
+    }
+  }
+  int link;
+  if(gotlink){
+    numberbuf[numberbufIndex] = '\0';
+    link = str2int(numberbuf);
+	Inode * newinode = readInode(disk,link);
+	deleteInode(disk,newinode);
+	freeInode(newinode);
+  }
+     //TODO: need to write to freeblock map.
+}
 Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory){
 	int size = arrayLength(gpointers);
 	int * pointers = malloc(sizeof(int) * (size+1));
@@ -239,6 +280,12 @@ Inode* readInode(disk_t disk, int block){
   if(gotlink){
     numberbuf[numberbufIndex] = '\0';
     link = str2int(numberbuf);
+	Inode * newinode = readInode(disk,link);
+	for(i = 0; newinode->pointers[i] != '\0';i+=1){
+		pointers[pointersIndex] = newinode->pointers[i];
+		pointersIndex+=1;
+	}
+	freeInode(newinode);
   }
   int * pointersSmall = malloc(sizeof(int) * (pointersIndex+1));
   for(i = 0; i < pointersIndex;i+=1){
