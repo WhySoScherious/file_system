@@ -1,4 +1,7 @@
-﻿#include <stdio.h>
+#ifndef __MYDISK_H__
+#define __MYDISK_H__
+
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -62,3 +65,5 @@ int readblock(disk_t disk, int block, unsigned char *databuf);
  * - unsigned char *databuf -- a pointer to a block-sized data buffer containing the data to write
  */
 int writeblock(disk_t disk, int block, unsigned char *databuf);
+
+#endif
