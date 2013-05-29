@@ -31,8 +31,10 @@ char *int2str(int n){
    int i,j;
    char buf[64];
    for(i=0;n>0;++i,n/=10) buf[i] = n%10+48;
-   char *string = malloc(sizeof(char)*i--);
+   char *string = malloc(sizeof(char)*i+1);
+   i -=1;
    for(j=0;i>=0;--i,++j) string[j] = buf[i];
+   string[j] = '\0';
    return string;
 }
 
@@ -65,7 +67,6 @@ void copy2buf(unsigned char *databuf, unsigned char **strings, int loc){
    int i,j;
    for(i=0;strings[i]!=NULL;++i)
       for(j=0;strings[i][j]!='\0';++j,++loc) databuf[loc] = strings[i][j];
-   if(loc < sizeof(databuf)/sizeof(unsigned char))
 		databuf[loc] = '\0';
 }
 
@@ -127,45 +128,60 @@ Inode* createInode(int size, int * pointers,bool directory, int block){
 //needs to be freed
 char * intArray2charArray(int * numbers){
 	char * str = malloc(sizeof(char) * 512);
+	str[0] = '\0';
 	int num = numbers[0];
 	int i = 0;
 	while(num != '\0'){
 		char * num2str = int2str(num);
-		strcat(str,int2str(num));
+		strcat(str,num2str);
 		free(num2str);
 		strcat(str,",");
 		num = numbers[i+1];
 		i +=1;
 	}
-	char *s = malloc(sizeof(char) * length(str));
+	
+	char *s = malloc(sizeof(char) * (length(str)+1));
+	
 	for(i = 0; str[i] != '\0';i+=1){
 		s[i] = str[i];
 	}
 	
 	s[i] = '\0'; //cpy '\0';
+	
 	free(str);
 	return  s;
 }
 
+int arrayLength(int * intarray){
+	int i;
+	for(i = 0; intarray[i] != '\0';i+=1);
+	return i;
+}
+
 Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory){
-	int size = sizeof(gpointers)/sizeof(int);
-	int * pointers = malloc(sizeof(int) * size);
+	int size = arrayLength(gpointers);
+	int * pointers = malloc(sizeof(int) * (size+1));
 	int i;
 	for(i = 0; i < size; i+=1){
 		pointers[i] = gpointers[i];
 	}
-	if(size < (disk->block_size-2-(ceil(log10(disk->size))*2)/(ceil(log10(disk->size))+1))){
+	pointers[i] = '\0';
+	
+	if(size < (disk->block_size-3-(ceil(log10(disk->size))*2)/(ceil(log10(disk->size))+1))){ //-3 for 2 \n and 1 \0
 		unsigned char *strings[4];
-		strings[0] = (directory)? "0" : int2str(size);
+		char * potSize = int2str(size);
+		strings[0] = (directory)? "0" : potSize;
+		free(potSize);
 		char * list = intArray2charArray(pointers);
-		char * pntrs = malloc(sizeof(char) * (length(list)+1));
+		char * pntrs = malloc(sizeof(char) * (length(list)+2));
 		pntrs[0] = '\n';
+		
 		pntrs[1] = '\0';
 		strcat(pntrs,list);
 		strings[1] = pntrs;
 		strings[2] = "\n";
 		strings[3] = NULL;
-		unsigned char *databuf = malloc(disk->block_size);
+		unsigned char *databuf = calloc(disk->block_size, sizeof(unsigned char) );
 		copy2buf(databuf,strings,0);
 		writeblock(disk,block,databuf);
 		free(databuf);
@@ -189,7 +205,7 @@ Inode* readInode(disk_t disk, int block){
   char * numberbuf = malloc(sizeof(char) * 16);
   int * pointers = malloc(sizeof(int) * disk->size);
   int pointersIndex = 0;
-  for(i = 0; i < disk->block_size;i+=1){
+  for(i = 0; databuf[i] != '\0' && i < disk->block_size;i+=1){
     if(!gotsize){
       if(databuf[i] == '\n'){
         numberbuf[numberbufIndex] = '\0';
@@ -224,15 +240,18 @@ Inode* readInode(disk_t disk, int block){
     numberbuf[numberbufIndex] = '\0';
     link = str2int(numberbuf);
   }
-  int * pointersSmall = malloc(sizeof(int) * pointersIndex);
+  int * pointersSmall = malloc(sizeof(int) * (pointersIndex+1));
   for(i = 0; i < pointersIndex;i+=1){
+	  printf("pointers = %d ",pointers[i]);
     pointersSmall[i] = pointers[i];
   }
+  pointersSmall[i] = '\0';
+  printf("\n");
   Inode * node = createInode(size,pointersSmall,(size ==0)? true : false, block);
   free(numberbuf);
   free(databuf);
   free(pointers);
-  free(pointersSmall);
+  //free(pointersSmall);
   return node;
   
 }
