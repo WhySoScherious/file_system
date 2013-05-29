@@ -7,8 +7,6 @@
 #include "file_system.h"
 //#include "mydisk.h"
 
-#define BITMASK 255
-
 struct {
    unsigned int rootblock,freeblock,datablock,size;
 } superblock;
@@ -16,6 +14,7 @@ struct {
 #define SUPERBLOCK 0
 #define ROOTBLOCK 1
 #define FREEBLOCK 2
+#define BITMASK 255
 
 /*Converts a decimal number into a binary string
  * Takes a number n
@@ -77,7 +76,7 @@ void copy2buf(unsigned char *databuf, unsigned char **strings, int loc){
 */
 void emplace_buf(unsigned char *databuf, unsigned int e, unsigned int bytes, unsigned int loc){
    int i;
-   //for(i=8*(--bytes);i>=0;i-=8,++loc) databuf[loc] = (e&(BITMASK<<i))>>i; //error: âBITMASKâ undeclared (first use in this function)
+   for(i=8*(--bytes);i>=0;i-=8,++loc) databuf[loc] = (e&(BITMASK<<i))>>i; //error: âBITMASKâ undeclared (first use in this function)
 }
 
 unsigned int read_buf(unsigned char *databuf, unsigned int bytes, unsigned int loc){
