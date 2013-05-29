@@ -27,13 +27,19 @@ void main(int argc, char *argv[])
 
   //test writing inode
     printf("\nWriting Inode\n");
-  int pointers[3] = {1,2,3};
+    int pointers[4] = {1,2,3,'\0'};
   Inode* node = writeInode(disk, 3, pointers,true);
 
   //read the Inode;
   readblock(disk, 3, databuf);
   printf(databuf);
   freeInode(node);
+  node = readInode(disk,3);
+  printf("Inode size = %d\n",node->size);
+  int * pointers2 = node->pointers;
+  for(i = 0; i < sizeof(pointers2)/sizeof(int) && pointers2[i] != '\0'; i+=1){
+    printf("%d,",pointers2[i]);
+  }
   printf("\nEnd Inode\n");
 
   // Write some blocks
