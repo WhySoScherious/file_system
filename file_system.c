@@ -66,6 +66,7 @@ void copy2buf(unsigned char *databuf, unsigned char **strings, int loc){
    int i,j;
    for(i=0;strings[i]!=NULL;++i)
       for(j=0;strings[i][j]!='\0';++j,++loc) databuf[loc] = strings[i][j];
+   databuf[loc] = '\0';
 }
 
 /* Place a larger number up to 32 bits into buffer at location loc where e
