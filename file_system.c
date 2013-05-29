@@ -207,12 +207,12 @@ Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory){
 		pointers[i] = gpointers[i];
 	}
 	pointers[i] = '\0';
-	
+	char * potSize;
 	if(size < (disk->block_size-3-(ceil(log10(disk->size))*2)/(ceil(log10(disk->size))+1))){ //-3 for 2 \n and 1 \0
 		unsigned char *strings[4];
-		char * potSize = int2str(size);
+		potSize = int2str(size);
 		strings[0] = (directory)? "0" : potSize;
-		free(potSize);
+		
 		char * list = intArray2charArray(pointers);
 		char * pntrs = malloc(sizeof(char) * (length(list)+2));
 		pntrs[0] = '\n';
@@ -228,6 +228,7 @@ Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory){
 		free(databuf);
 		free(list);
 		free(pntrs);
+		free(potSize);
 	}else{
 		//need to read from free block map to find more room to put extra Inode
 	}
@@ -251,6 +252,7 @@ Inode* readInode(disk_t disk, int block){
       if(databuf[i] == '\n'){
         numberbuf[numberbufIndex] = '\0';
         size = str2int(numberbuf);
+		numberbufIndex = 0;
         gotsize = true;
       }else{
         numberbuf[numberbufIndex] = databuf[i];
