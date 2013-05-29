@@ -34,7 +34,7 @@ Inode* readInode(disk_t disk, int block);
 Inode* writeInode(disk_t disk, int block, int * pointers,bool directory);
 
 //will completely remove, and then write the updated Inode in the old location
-void rewriteInode(disk_t disk, Inode* inode);
+Inode* rewriteInode(disk_t disk, Inode* inode);
  
 //will safely remove Inode
 void deleteInode(disk_t disk, Inode* inode);
