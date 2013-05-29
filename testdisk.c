@@ -27,7 +27,7 @@ void main(int argc, char *argv[])
 
   //test writing inode
     printf("\nWriting Inode\n");
-    int pointers[4] = {1,2,3,'\0'};
+    int pointers[4] = {12,243,3,'\0'};
   Inode* node = writeInode(disk, 3, pointers,true);
 
   //read the Inode;
@@ -37,9 +37,10 @@ void main(int argc, char *argv[])
   node = readInode(disk,3);
   printf("Inode size = %d\n",node->size);
   int * pointers2 = node->pointers;
-  for(i = 0; i < sizeof(pointers2)/sizeof(int) && pointers2[i] != '\0'; i+=1){
+  for(i = 0; i < pointers2[i] != '\0'; i+=1){
     printf("%d,",pointers2[i]);
   }
+  freeInode(node);
   printf("\nEnd Inode\n");
 
   // Write some blocks
@@ -94,7 +95,9 @@ void main(int argc, char *argv[])
   printf("Done reading and writing.\n");
 
   // Try seeking past the end of the disk
-  printf("Seeking off the end of the disk\n");
-  seekblock(disk, disk->size);
-  
+  //printf("Seeking off the end of the disk\n");
+  //seekblock(disk, disk->size);
+  free(disk);
+  free(databuf);
+  exit(0);
 }
