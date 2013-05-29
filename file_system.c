@@ -7,6 +7,10 @@
 #include "file_system.h"
 //#include "mydisk.h"
 
+struct {
+   unsigned int rootblock,freeblock,datablock,size;
+} superblock;
+
 #define SUPERBLOCK 0
 #define ROOTBLOCK 1
 #define FREEBLOCK 2
@@ -64,23 +68,43 @@ void copy2buf(unsigned char *databuf, unsigned char **strings, int loc){
       for(j=0;strings[i][j]!='\0';++j,++loc) databuf[loc] = strings[i][j];
 }
 
+/* Place a larger number up to 32 bits into buffer at location loc where e
+ * is the value.
+*/
+void emplace_buf(unsigned char *databuf, unsigned int e, unsigned int bytes, unsigned int loc){
+   int i;
+   for(i=8*(--bytes);i>=0;i-=8,++loc) databuf[loc] = (e&(BITMASK<<i))>>i;
+}
+
+unsigned int read_buf(unsigned char *databuf, unsigned int bytes, unsigned int loc){
+   unsigned int e=0;
+   for(;bytes>0;--bytes,++loc,e<<=8) e+=databuf[loc];
+   return e>>8;
+}
+
+void read_super_block(disk_t disk){
+   printf("Reading super block...");
+   unsigned char *databuf = malloc(disk->block_size);
+   readblock(disk,SUPERBLOCK,databuf);
+   superblock.size = read_buf(databuf,4,0);
+   superblock.rootblock = databuf[4];
+   superblock.freeblock = databuf[5];
+   superblock.datablock = databuf[6];
+   printf("%d %d %d %d",superblock.size,superblock.rootblock,
+                        superblock.freeblock,superblock.datablock);
+   printf("\n");
+}
+
 void write_super_block(disk_t disk){
    printf("Writing super block...");
    unsigned char *databuf = malloc(disk->block_size);
-   int i=0;
-   unsigned char *strings[10];
-   strings[0] = "\nSuper Block Starts Here:\nSize: ";
-   strings[1] = int2str(disk->size);
-   strings[2] = "\nLocations:\n   Free Block Map: ";
-   strings[3] = int2str(FREEBLOCK);
-   strings[4] = "\n   Root Directory: ";
-   strings[5] = int2str(ROOTBLOCK);
-   strings[6] = "\n   Data Block: ";
-   strings[7] = "?";
-   strings[8] = "\n";
-   strings[9] = NULL;
-   copy2buf(databuf,strings,0);
+   //Info 0-3:SIZE 4:RDIR 5:FBM 6:DATA
+   emplace_buf(databuf,disk->size,4,0);
+   databuf[4] = ROOTBLOCK;
+   databuf[5] = FREEBLOCK;
+   databuf[6] = '?';
    writeblock(disk,SUPERBLOCK,databuf);
+   free(databuf);
    printf("\n");
 }
 
