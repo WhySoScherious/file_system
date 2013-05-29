@@ -66,7 +66,8 @@ void copy2buf(unsigned char *databuf, unsigned char **strings, int loc){
    int i,j;
    for(i=0;strings[i]!=NULL;++i)
       for(j=0;strings[i][j]!='\0';++j,++loc) databuf[loc] = strings[i][j];
-   databuf[loc] = '\0';
+   if(loc < sizeof(databuf)/sizeof(unsigned char))
+		databuf[loc] = '\0';
 }
 
 /* Place a larger number up to 32 bits into buffer at location loc where e
@@ -74,7 +75,7 @@ void copy2buf(unsigned char *databuf, unsigned char **strings, int loc){
 */
 void emplace_buf(unsigned char *databuf, unsigned int e, unsigned int bytes, unsigned int loc){
    int i;
-   for(i=8*(--bytes);i>=0;i-=8,++loc) databuf[loc] = (e&(BITMASK<<i))>>i;
+   //for(i=8*(--bytes);i>=0;i-=8,++loc) databuf[loc] = (e&(BITMASK<<i))>>i; //error: âBITMASKâ undeclared (first use in this function)
 }
 
 unsigned int read_buf(unsigned char *databuf, unsigned int bytes, unsigned int loc){
