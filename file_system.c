@@ -7,6 +7,8 @@
 #include "file_system.h"
 //#include "mydisk.h"
 
+#define BITMASK 255
+
 struct {
    unsigned int rootblock,freeblock,datablock,size;
 } superblock;
