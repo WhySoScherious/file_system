@@ -18,6 +18,10 @@ typedef struct Inode{
   int block;
 } Inode;
 
+struct {
+   unsigned int rootblock,freeblock,datablock,size;
+} superblock;
+
 
 //block location on disk of Inode.
 Inode* readInode(disk_t disk, int block);
