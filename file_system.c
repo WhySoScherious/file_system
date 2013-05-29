@@ -7,9 +7,7 @@
 #include "file_system.h"
 //#include "mydisk.h"
 
-struct {
-   unsigned int rootblock,freeblock,datablock,size;
-} superblock;
+
 
 #define SUPERBLOCK 0
 #define ROOTBLOCK 1
