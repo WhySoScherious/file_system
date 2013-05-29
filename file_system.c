@@ -177,6 +177,67 @@ Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory){
 	return createInode(size,pointers,directory,block);
 }
 
+Inode* readInode(disk_t disk, int block){
+  char * databuf = malloc(sizeof(char) * disk->block_size);
+  readblock(disk,block,databuf);
+  int size;
+  int i;
+  bool gotsize = false;
+  bool gotpointers = false;
+  bool gotlink = false;
+  int numberbufIndex = 0;
+  char * numberbuf = malloc(sizeof(char) * 16);
+  int * pointers = malloc(sizeof(int) * disk->size);
+  int pointersIndex = 0;
+  for(i = 0; i < disk->block_size;i+=1){
+    if(!gotsize){
+      if(databuf[i] == '\n'){
+        numberbuf[numberbufIndex] = '\0';
+        size = str2int(numberbuf);
+        gotsize = true;
+      }else{
+        numberbuf[numberbufIndex] = databuf[i];
+        numberbufIndex +=1;
+      }
+    }else if(!gotpointers){
+      if(databuf[i] == '\n'){
+        gotpointers = true; 
+      }else{
+        if(databuf[i] == ','){
+	  numberbuf[numberbufIndex] = '\0';
+          pointers[pointersIndex] = str2int(numberbuf);
+	  numberbufIndex = 0;
+          pointersIndex +=1;
+	}else{
+          numberbuf[numberbufIndex] = databuf[i];
+          numberbufIndex +=1;
+	}
+      }
+    }else{
+      gotlink = true;
+      numberbuf[numberbufIndex] = databuf[i];
+      numberbufIndex +=1;
+    }
+  }
+  int link;
+  if(gotlink){
+    numberbuf[numberbufIndex] = '\0';
+    link = str2int(numberbuf);
+  }
+  int * pointersSmall = malloc(sizeof(int) * pointersIndex);
+  for(i = 0; i < pointersIndex;i+=1){
+    pointersSmall[i] = pointers[i];
+  }
+  Inode * node = createInode(size,pointersSmall,(size ==0)? true : false, block);
+  free(numberbuf);
+  free(databuf);
+  free(pointers);
+  free(pointersSmall);
+  return node;
+  
+}
+
+
 void freeInode(Inode * inode){
 	free(inode->pointers);
 	free(inode);
