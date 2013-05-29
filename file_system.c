@@ -326,8 +326,6 @@ void write_block_map(disk_t disk, int * bmap){
    bitmap size is enough blocks to hold n bits, starts at block 2 */
    int *bitmap;
    
-   disk = opendisk(disk_name);
-   
    
    databuf = malloc(sizeof(char) * disk->block_size);
 
