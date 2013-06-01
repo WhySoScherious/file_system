@@ -350,11 +350,30 @@ void write_block_map(disk_t disk, int * bmap){
    }
    free(databuf);
    
-/* include the superblock, root directory, and bitmap blocks in the bitmap. 
-That will make the block numbers correspond to the blocks on your "disk".*/
 
-/*mark superblock and root dir as used*/
+}
 
+int ** read_block_map(disk_t disk)
+{
+/*
+bitmap[i] = 0, block[i] = free
+bitmap[i] = 1, block[i] = allocated
+*/
+ int i, j;
+ unsigned char *databuf = malloc(sizeof(char) * disk->block_size);
+                        
+ int bitmap[disk->size/8];
+ bitmap[SUPERBLOCK] = 1;
+ bitmap[ROOTBLOCK] = 1;
+            
+ for(i = 2; i< disk->size/8 && bitmap[i] !='\0'; i++){
+    readblock(disk, i, databuf);
+    if(bitmap[i] = 0)
+        return i;
+    }
+ 
+free(databuf);
 
-
+ return 0;
+  
 }
