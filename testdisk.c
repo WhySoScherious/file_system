@@ -21,6 +21,10 @@ void main(int argc, char *argv[])
 
   // Open the disk
   disk = opendisk(disk_name);
+  
+  //Read and write super block
+  write_super_block(disk);
+  read_super_block(disk);
 
   // Set up a buffer for writing and reading
   databuf = malloc(disk->block_size);
