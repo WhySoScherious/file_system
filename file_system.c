@@ -353,27 +353,30 @@ void write_block_map(disk_t disk, int * bmap){
 
 }
 
-int ** read_block_map(disk_t disk)
+
+/*should read in thsese blocks and return a list of ints representing 
+each bit*/
+int ** read_block_map(disk_t disk, int *bmap)
 {
 /*
 bitmap[i] = 0, block[i] = free
 bitmap[i] = 1, block[i] = allocated
 */
- int i, j;
+ int i, j,bufindex, L= 0;
  unsigned char *databuf = malloc(sizeof(char) * disk->block_size);
-                        
- int bitmap[disk->size/8];
- bitmap[SUPERBLOCK] = 1;
- bitmap[ROOTBLOCK] = 1;
-            
- for(i = 2; i< disk->size/8 && bitmap[i] !='\0'; i++){
-    readblock(disk, i, databuf);
-    if(bitmap[i] = 0)
-        return i;
-    }
+ char * buf = malloc(sizeof(char) * 8);
  
-free(databuf);
-
- return 0;
+ for(i = 2; bmap[j] != '\0';i+=1){
+  readblock(disk, i, databuf);
+  for(j = 0; databuf[j] != '\0' && j < disk->block_size;j+=1){
   
+    buf[L] = databuf[j];
+    L +=1;
+   }
+  return L;
+}
+
+ free(databuf);
+ free(buf);
+ return 0;  
 }
