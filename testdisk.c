@@ -4,6 +4,31 @@
 //#include "mydisk.h" //already in file_system.h
 #include "file_system.h"
 
+void readdisk(char *disk_name, int blocknum){
+   assert(disk_name);
+   disk_t disk = opendisk(disk_name);
+   read_super_block(disk);
+   Inode *file = readInode(disk,blocknum);
+   if(file->size == 0) {
+      printf("Is a directory\n");
+      return;
+   }
+   unsigned char *databuf = malloc(disk->block_size * (sizeof(unsigned char)));
+   unsigned char *filebuf = malloc(disk->block_size * file->size * sizeof(unsigned char));
+   int i,j,k;
+   k = 0;
+   for(i=0;i<file->size;++i,++blocknum){
+      readblock(disk,blocknum,databuf);
+      for(j=0;j<(disk->block_size * sizeof(unsigned char));++j,++k){
+         filebuf[k] = databuf[j];
+      }
+   }
+   for(i=0;i<disk->block_size * file->size * sizeof(unsigned char)
+           || filebuf[i] == '\0';++i){
+      putchar(filebuf[i]);
+   }
+}
+
 void main(int argc, char *argv[])
 {
   char *disk_name;
