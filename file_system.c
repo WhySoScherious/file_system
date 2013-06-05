@@ -356,27 +356,28 @@ void write_block_map(disk_t disk, int * bmap){
 
 /*should read in thsese blocks and return a list of ints representing 
 each bit*/
-int ** read_block_map(disk_t disk, int *bmap)
+int * read_block_map(disk_t disk)
 {
 /*
 bitmap[i] = 0, block[i] = free
 bitmap[i] = 1, block[i] = allocated
 */
- int i, j,bufindex, L= 0;
- unsigned char *databuf = malloc(sizeof(char) * disk->block_size);
- char * buf = malloc(sizeof(char) * 8);
+  int i, j, L= 0;
+  unsigned char *databuf = malloc(sizeof(char) * disk->block_size);
+  int *buf = malloc(sizeof(int) * disk->size);
  
- for(i = 2; bmap[j] != '\0';i+=1){
-  readblock(disk, i, databuf);
-  for(j = 0; databuf[j] != '\0' && j < disk->block_size;j+=1){
-  
-    buf[L] = databuf[j];
-    L +=1;
-   }
-  return L;
+  for(i = 2; L < disk->size; i+=1){
+    readblock(disk, i, databuf);
+    for(j = 0; databuf[j] != '\0' && j < disk->block_size;j+=1){
+ 
+      buf[L] = str2int(databuf);
+       L +=1;
+       printf("%d ", buf[L]);
+    }
+    
 }
-
- free(databuf);
- free(buf);
- return 0;  
+ 
+  free(databuf);
+ 
+ return buf;  
 }
