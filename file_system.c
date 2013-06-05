@@ -116,12 +116,13 @@ void write_super_block(disk_t disk){
 // if you have more pointers than that, then it is your job to create an Inode with the remaining
 // pointers, write the inode, and then give the block location of that inode to the previous Inode.
 // Additional inodes should have size = to the number of blocks in them
-Inode* createInode(int size, int * pointers,bool directory, int block){
+Inode* createInode(int size, int * pointers,bool directory, int block, char * name){
 	Inode* node = malloc(sizeof(Inode));
 	node->size = size;
 	node->pointers = pointers;
 	node->isDirectory = directory;
 	node->block = block;
+        node->name = name;
 	return node;
 }
 
@@ -161,7 +162,7 @@ int arrayLength(int * intarray){
 
 Inode * rewriteInode(disk_t disk, Inode* inode){
 	deleteInode(disk,inode);
-	Inode* newinode = writeInode(disk,inode->block,inode->pointers,inode->isDirectory);
+	Inode* newinode = writeInode(disk,inode->block,inode->pointers,inode->isDirectory,inode->name);
 	freeInode(inode);
 	return newinode;
 }
@@ -200,17 +201,25 @@ void deleteInode(disk_t disk, Inode* inode){
   }
      //TODO: need to write to freeblock map.
 }
-Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory){
+//max name size = 15
+Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory, char * nametemp){
+  
 	int size = arrayLength(gpointers);
 	int * pointers = malloc(sizeof(int) * (size+1));
 	int i;
+        int strlength = length(nametemp);
+        char * name = malloc(sizeof(char)*  16);
+        for(i = 0; i < 15 && nametemp[i] != '\0';i+=1){
+	  name[i] = nametemp[i];
+	}
+        name[i] = '\0';
 	for(i = 0; i < size; i+=1){
 		pointers[i] = gpointers[i];
 	}
 	pointers[i] = '\0';
 	char * potSize;
-	if(size < (disk->block_size-3-(ceil(log10(disk->size))*2)/(ceil(log10(disk->size))+1))){ //-3 for 2 \n and 1 \0
-		unsigned char *strings[4];
+	if(size < (disk->block_size-20-(ceil(log10(disk->size))*2)/(ceil(log10(disk->size))+1))){ //-4 for 3 \n and 1 \0 - 16 for name length
+		unsigned char *strings[6];
 		potSize = int2str(size);
 		strings[0] = (directory)? "0" : potSize;
 		
@@ -222,7 +231,9 @@ Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory){
 		strcat(pntrs,list);
 		strings[1] = pntrs;
 		strings[2] = "\n";
-		strings[3] = NULL;
+                strings[3] = name;
+                strings[4] = "\n";
+		strings[5] = NULL;
 		unsigned char *databuf = calloc(disk->block_size, sizeof(unsigned char) );
 		copy2buf(databuf,strings,0);
 		writeblock(disk,block,databuf);
@@ -233,17 +244,20 @@ Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory){
 	}else{
 		//need to read from free block map to find more room to put extra Inode
 	}
-	return createInode(size,pointers,directory,block);
+	return createInode(size,pointers,directory,block,name);
 }
 
 Inode* readInode(disk_t disk, int block){
   char * databuf = malloc(sizeof(char) * disk->block_size);
+  printf("reading block %d\n",block);
   readblock(disk,block,databuf);
   int size;
-  int i;
+  int i,j;
+  char * name;
   bool gotsize = false;
   bool gotpointers = false;
   bool gotlink = false;
+  bool gotname = false;
   int numberbufIndex = 0;
   char * numberbuf = malloc(sizeof(char) * 16);
   int * pointers = malloc(sizeof(int) * disk->size);
@@ -262,6 +276,8 @@ Inode* readInode(disk_t disk, int block){
     }else if(!gotpointers){
       if(databuf[i] == '\n'){
         gotpointers = true; 
+        numberbuf[0] = '\0';
+        numberbufIndex = 0;
       }else{
         if(databuf[i] == ','){
 	  numberbuf[numberbufIndex] = '\0';
@@ -273,7 +289,20 @@ Inode* readInode(disk_t disk, int block){
           numberbufIndex +=1;
 	}
       }
-    }else{
+    }else if(!gotname){
+      if(databuf[i] == '\n'){
+        name = malloc(sizeof(char) * numberbufIndex);
+        for(j = 0; j < numberbufIndex; j+=1){
+          name[j] = numberbuf[j];
+	}
+	gotname = true;
+        numberbufIndex = 0;
+      }else{
+        numberbuf[numberbufIndex]= databuf[i];
+        numberbufIndex +=1;
+      }
+    }
+    else{
       gotlink = true;
       numberbuf[numberbufIndex] = databuf[i];
       numberbufIndex +=1;
@@ -297,7 +326,7 @@ Inode* readInode(disk_t disk, int block){
   }
   pointersSmall[i] = '\0';
   printf("\n");
-  Inode * node = createInode(size,pointersSmall,(size ==0)? true : false, block);
+  Inode * node = createInode(size,pointersSmall,(size ==0)? true : false, block,name);
   free(numberbuf);
   free(databuf);
   free(pointers);
@@ -309,6 +338,7 @@ Inode* readInode(disk_t disk, int block){
 
 void freeInode(Inode * inode){
 	free(inode->pointers);
+        free(inode->name);
 	free(inode);
 }
 
