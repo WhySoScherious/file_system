@@ -350,7 +350,7 @@ void freeInode(Inode * inode){
 }
 
 void write_root_dir(disk_t disk){
-  int * pointers = {};
+  int pointers[0];
   Inode * node = writeInode(disk,1,pointers,true,"root");
   freeInode(node);
 }
