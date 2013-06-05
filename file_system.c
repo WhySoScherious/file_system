@@ -336,18 +336,21 @@ void write_block_map(disk_t disk, int * bmap){
    and the user can fill it with 0s and 1s to start*/
 	//i = block number
    int bitmapindex = 0;
-   for(i = 2; bmap[bitmapindex] != '\0';i+=1){
+   for(i = 2; bitmapindex < disk->size;i+=1){
 	   int bufindex = 0;
-	   while(bufindex < disk->block_size && bmap[bitmapindex] != '\0'){
+	   while(bufindex < disk->block_size && bitmapindex < disk->size){
 			databuf[bufindex] = (bmap[bitmapindex] == 0)? '0' : '1';
 			bufindex +=1;
 			bitmapindex +=1;
 	   }
-	   if(bmap[bitmapindex] == '\0' && bufindex < disk->block_size){
+	   if(bitmapindex == disk->size && bufindex < disk->block_size){
 			databuf[bufindex] = '\0'; //terminate
 	   }
+	   printf("wrote blockmap %s to %d\n",databuf,i);
 	   writeblock(disk,i,databuf);
+
    }
+   
    free(databuf);
    
 
@@ -358,26 +361,26 @@ void write_block_map(disk_t disk, int * bmap){
 each bit*/
 int * read_block_map(disk_t disk)
 {
-/*
-bitmap[i] = 0, block[i] = free
-bitmap[i] = 1, block[i] = allocated
-*/
+
   int i, j, L= 0;
   unsigned char *databuf = malloc(sizeof(char) * disk->block_size);
   int *buf = malloc(sizeof(int) * disk->size);
+
  
   for(i = 2; L < disk->size; i+=1){
     readblock(disk, i, databuf);
-    for(j = 0; databuf[j] != '\0' && j < disk->block_size;j+=1){
+  
+    for(j = 0; databuf[j] != '\0' && j < disk->block_size; j+=1){
  
-      buf[L] = str2int(databuf);
-       L +=1;
-       printf("%d ", buf[L]);
+     // buf[L] = str2int(databuf[j]); // instead of databuf[j], we should just have databuf since str2int takes in a char *
+      buf[L] = (databuf[j] == '0')? 0 : 1;
+	// printf("reading %d \n",str2int(data  
+        L +=1;
+
     }
-    
-}
- 
+  }
+
   free(databuf);
- 
- return buf;  
+
+ return buf; 
 }
