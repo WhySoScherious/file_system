@@ -29,6 +29,17 @@ void main(int argc, char *argv[])
   // Set up a buffer for writing and reading
   databuf = malloc(disk->block_size);
 
+  //test writing block map
+  printf("testing read and write block map\n");
+  int blocks[6]= {1,1,0,1,0,1};
+  write_block_map(disk,blocks);
+  int * retublocks = read_block_map(disk);
+  for(i = 0; i < 6; i+=1){
+    printf("%d, ",retublocks[i]);
+  }
+  printf("\n");
+  free(retublocks);
+
   //test writing inode
     printf("\nWriting Inode\n");
     int pointers[4] = {12,243,3,'\0'};
