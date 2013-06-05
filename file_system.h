@@ -52,6 +52,6 @@ void read_root_dir(disk_t disk);
 
 void write_block_map(disk_t disk, int * bmap);
 
-int *read_block_map(disk_t disk);
+int * read_block_map(disk_t disk);
 
 #endif
