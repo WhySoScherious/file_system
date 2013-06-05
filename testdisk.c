@@ -4,9 +4,7 @@
 //#include "mydisk.h" //already in file_system.h
 #include "file_system.h"
 
-void readdisk(char *disk_name, int blocknum){
-   assert(disk_name);
-   disk_t disk = opendisk(disk_name);
+void readdisk(disk_t disk, int blocknum){
    read_super_block(disk);
    Inode *file = readInode(disk,blocknum);
    if(file->size == 0) {
