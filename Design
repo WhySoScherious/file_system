@@ -1,48 +1,84 @@
+Nick 
+Chase
+Maria
+Paul
+
 Design Document
-Assignment 2: File System
+Assignment 3: File System
 
 Purpose:
+
 The purpose of this assignment is an implementation of a file system
 
 The assignment is to:
 
-Write a format program that creates a superblock, a free block map, and an initial root directory
-for your disk. These functions should use a disk that has been created with makedisk and will have
+1) Write a format program that creates a superblock, a free block map, and an initial root directory
+for your disk. 
+These functions should use a disk that has been created with makedisk and will have
 to use opendisk(), seekblock(), and writeblock() to format the disk.
-Your superblock should include the size of the partition, the location of the free block map,
-the location of the root directory, and the start of the data blocks.
-Your superblock and inodes can each be one block long. Your free block map may be larger.
-Your free block map can be a bitmap with 0s for free blocks and 1s for allocated blocks. 
-I would just include the superblock, root directory, and bitmap blocks in the bitmap. 
-That will make the block numbers correspond to the blocks on your "disk".
-Write functions to read and write your root directory (writing a directory = creating a file).
-Keep in mind that your files should have an inode, but your inodes may be very simple, containing
-Your inodes can be very simple. They can be fixed size (1 block) and need only contain the size of 
-the file and an array of direct block pointers (i.e., a list of block numbers for the blocks in the file).
-Write functions to read and write files on your disk.
-It might be a good idea to start with 1 block files. Once you get them working, then make it
-possible for your files to be larger than 1 block.
+
+a) superblock should include the size of the partition, the location of the free block map,
+   the location of the root directory, and the start of the data blocks.
+
+b) free block map can be a bitmap with 0s for free blocks and 1s for allocated blocks. 
+  Include the superblock, root directory, and bitmap blocks in the bitmap. 
+  That will make the block numbers correspond to the blocks on your "disk".
+
+c) Write functions to read and write your root directory (writing a directory = creating a file).
+   Keep in mind that your files should have an inode, but your inodes may be very simple.
+   They can be fixed size (1 block) and need only contain the size of the file and an array of 
+   direct block pointers (i.e., a list of block numbers for the blocks in the file).
+   
+2) Write functions to read and write files on your disk.
+   It might be a good idea to start with 1 block files. 
 
 Data:
+
 We are given mydisk.c, mydisk.h, makedisk.c, and testdisk.c
 
-makedisk.h and makedisk.c consist of functions createdisk, opendisk, seekblock, readblock, and 
-writeblock.
+-makedisk.h and makedisk.c consist of functions createdisk, opendisk, seekblock, readblock, and 
+ writeblock which we use in our format program file_system.c when we create the superblock, free block map, and inodes.
 
-The functions we use in our program file_system.c are 
-readblock- read the specified block of the disk file system partition
-writeblock- write the specified block of the disk file system partition
-seekblock- seek to the specific block within the file system partition of a disk file
+-The functions we use in our program file_system.c are 
+ readblock- read the specified block of the disk file system partition
+ writeblock- write the specified block of the disk file system partition
+ seekblock- seek to the specific block within the file system partition of a disk file
 
-testdisk.c - test file for testing our if out fucntions work
+-testdisk.c - test file for testing our fucntions
 
-file_system.c and file_system.h is the format program that creates superblock, an initial rootblock, 
-free block map and inodes. 
+-file_system.c and file_system.h is the format program that creates superblock, an initial rootblock, 
+ free block map and inodes. 
 
-Those functions in file_system.c uses a disk made with makedisk.c which was provided for us.
+The functions in file_system.c use a disk made with makedisk.c which was provided for us.
 
 
 file_system.c/file_system.h:
+
+file_system.h contains structs for the Inodes and the Superblock
+
+#define SUPERBLOCK 0 /* superblock starts at block 0 */
+#define ROOTBLOCK  1 /* rootblock  starts at block 1 */
+#define FREEBLOCK  2 /* freeblock starts at block 2 */
+
+typedef struct Inode{
+
+  int size;
+  int *pointers;
+  int nextInodePointer;
+  bool isDirectory;
+  int block;
+  
+}Inode;
+
+struct superblock {
+unsigned int rootblock;
+unsigned int freeblock;
+unsigned int datablock;
+unsigned int size;
+} superblock;
+
+
+file_system.c:
 
 1. char *int2binstr(unsigned int n)
 
@@ -69,17 +105,17 @@ file_system.c/file_system.h:
  -read superblock
 
 7. void write_block_map(disk_t disk, int *bmap)
+bmap - array of 0 and 1
 -writes the file data in block that is free
 
-8. int ** read_block_map(disk_t disk)
-- bitmap- array of 0 and 1
+8. int *read_block_map(disk_t disk)
 - bitmap[i] = 0, block[i] = free
-- bitma[i] = 1, block[i] = allocated
-- looks for a free block in the bitmap
+- bitmapi] = 1, block[i] = allocated
+- returns a list of ints 
 
 9. Inode* createInode( int size, int * pointers, bool directory, int block)
-
--Inodes which represent directories should be size = 0, pointers will be to other inodes
+- crete an inode
+- Inodes which represent directories should be size = 0, pointers will be to other inodes
 - the max # of pointers is (BLOCK_SIZE-3-(ceil(log10(disk_size))*2)/(ceil(log10(disk_size))+1) 
 
 10. char * intArray2charArray(int * numbers)
@@ -87,7 +123,21 @@ file_system.c/file_system.h:
  -turns a list of ints into a char array of numbers separated by commas. Will end in a comma.
 
 11. void deleteInode(disk_t disk, Inode* inode)
+- safely removes an Inode
 
 12. Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory)
+-disk: disk to write to
+-block: block to write Inode
+-pointers: list of pointers
+-directory: whether it's a directory Inode or not.
+-must free Inode
 
 13. Inode* readInode(disk_t disk, int block)
+- block location on disk of Inode
+
+14. Inode* rewriteInode(disk_t disk, Inode* inode)
+ - removes and writes the updated Inode in the old location
+ 
+testdisk.c:
+
+Functions above tested in testdisk.c 
