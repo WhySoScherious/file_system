@@ -16,6 +16,7 @@ typedef struct Inode{
   int nextInodePointer;
   bool isDirectory;
   int block;
+  char * name;
 } Inode;
 
 struct {
@@ -31,7 +32,8 @@ Inode* readInode(disk_t disk, int block);
 //pointers: list of pointers
 //directory: whether it's a directory Inode or not.
 //Inode must be freed.
-Inode* writeInode(disk_t disk, int block, int * pointers,bool directory);
+//name must be less than 16 chars
+Inode* writeInode(disk_t disk, int block, int * pointers,bool directory,char * name);
 
 //will completely remove, and then write the updated Inode in the old location
 Inode* rewriteInode(disk_t disk, Inode* inode);
