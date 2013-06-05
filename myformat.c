@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
+#include <math.h>
 #include "file_system.h"
 #include "mydisk.h"
 
@@ -14,10 +15,11 @@ int main(int argc, char** argv){
    assert(disk_name);
    disk_t disk = opendisk(disk_name);
    int blockmap[disk->size];
-   blockmap[0] = blockmap[1] = blockmap[2] = 1;
+   int blocks = ceil((disk->size)/(disk->block_size)) + 2;
+   int i;
+   for(i=0;i<blocks;++i) blockmap[i] = 1;
    write_super_block(disk);
    write_root_dir(disk);
    write_block_map(disk,&blockmap);
    return 0;
 }
-
