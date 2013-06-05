@@ -350,8 +350,9 @@ void freeInode(Inode * inode){
 }
 
 void write_root_dir(disk_t disk){
-   printf("Writing root directory...");
-   printf("\n");
+  int * pointers = {};
+  Inode * node = writeInode(disk,1,pointers,true,"root");
+  freeInode(node);
 }
 
 void write_block_map(disk_t disk, int * bmap){
