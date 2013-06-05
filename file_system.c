@@ -92,6 +92,7 @@ void read_super_block(disk_t disk){
    superblock.rootblock = databuf[4];
    superblock.freeblock = databuf[5];
    superblock.datablock = databuf[6];
+   free(databuf);
    printf("%d %d %d %d",superblock.size,superblock.rootblock,
                         superblock.freeblock,superblock.datablock);
    printf("\n");
