@@ -105,7 +105,7 @@ void write_super_block(disk_t disk){
    emplace_buf(databuf,disk->size,4,0);
    databuf[4] = ROOTBLOCK;
    databuf[5] = FREEBLOCK;
-   databuf[6] = ceil((disk->size)/disk->block_size)+1+FREEBLOCK;
+   databuf[6] = ceil(double(disk->size)/double(disk->block_size))+1+FREEBLOCK;
    writeblock(disk,SUPERBLOCK,databuf);
    free(databuf);
    printf("\n");
