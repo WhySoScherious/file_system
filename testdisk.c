@@ -66,7 +66,7 @@ void main(int argc, char *argv[])
   //test writing inode
     printf("\nWriting Inode\n");
     int pointers[4] = {12,243,3,'\0'};
-  Inode* node = writeInode(disk, 3, pointers,false);
+  Inode* node = writeInode(disk, 3, pointers,false,"test");
 
   //read the Inode;
   readblock(disk, 3, databuf);
