@@ -201,6 +201,13 @@ void deleteInode(disk_t disk, Inode* inode){
   }
      //TODO: need to write to freeblock map.
 }
+
+void write_root_dir(disk){
+  int * pointers = {};
+  Inode * node = writeInode(disk,1,pointers,true,"root");
+  freeInode(node);
+}
+
 //max name size = 15
 Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory, char * nametemp){
   
