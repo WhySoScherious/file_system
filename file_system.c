@@ -160,9 +160,9 @@ int arrayLength(int * intarray){
     return i;
 }
 
-Inode * rewriteInode(disk_t disk, Inode* inode){
+Inode * rewriteInode(disk_t disk, Inode* inode, int *pointers){
     deleteInode(disk,inode);
-    Inode* newinode = writeInode(disk,inode->block,inode->pointers,inode->isDirectory,inode->name);
+    Inode* newinode = writeInode(disk, inode->block, pointers , inode->isDirectory, inode->name);
     freeInode(inode);
     return newinode;
 }
@@ -203,8 +203,9 @@ void deleteInode(disk_t disk, Inode* inode){
 }
 
 void write_root_dir(disk_t disk){
-    int * pointers;
-    Inode * node = writeInode(disk,1,pointers,true,"root");
+    int * pointers = calloc (1, sizeof (int));
+    pointers[0] = '\0';
+    Inode *node = writeInode(disk,1,pointers,true,"root");
     freeInode(node);
 }
 

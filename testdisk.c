@@ -62,7 +62,19 @@ int write_file (disk_t disk, char *file_name) {
 
         printf("\nWriting Inode\n");
 
-        Inode* node = writeInode(disk, i_node_block, pointers , false, file_name);
+        Inode *node = writeInode(disk, i_node_block, pointers, false, file_name);
+        Inode *root = readInode (disk, 1);
+
+        int size = arrayLength(root->pointers) + 1;
+        printf("%d\n", size);
+        int *ptrs = calloc (size + 1, sizeof (int));
+        for (i = 0; i < size - 1; i++) {
+            ptrs[i] = root->pointers[i];
+        }
+
+        ptrs[i++] = i_node_block;
+        ptrs[i] = '\0';
+        root->pointers = ptrs;
 
         int k = 0;
         for(i = 0; i < num_blocks; ++i, k = k + BLOCK_SIZE) {
@@ -70,7 +82,7 @@ int write_file (disk_t disk, char *file_name) {
             writeblock (disk, pointers[i], databuf);
         }
 
-        printf("\nWrote successfully\n");
+        printf("Wrote successfully\n");
 
         free (filebuf);
         free (databuf);
@@ -123,6 +135,9 @@ void main(int argc, char *argv[])
     write_super_block(disk);
     read_super_block(disk);
 
+    // Write the root directory
+    write_root_dir (disk);
+
     // Set up a buffer for writing and reading
     databuf = malloc(disk->block_size);
 
@@ -173,9 +188,11 @@ void main(int argc, char *argv[])
         *line = '\0';
         char *file_name = strdup (buffer);
 
-        for (i = 7; i < disk->size; i++) {
-            Inode* node = readInode (disk, i);
-            printf ("%s %s", file_name, node->name);
+        Inode *root = readInode (disk, 1);
+
+        for (i = 0; i < arrayLength (root->pointers); i++) {
+            Inode* node = readInode (disk, root->pointers[i]);
+
             if (strcmp (file_name, node->name) == 0) {
                 file_num = i;
                 break;
