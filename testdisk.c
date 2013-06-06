@@ -54,7 +54,10 @@ void main(int argc, char *argv[])
 
   //test writing block map
   printf("testing read and write block map\n");
-  int blocks[6]= {1,1,0,1,0,1};
+  int * blocks = calloc(disk->size,sizeof(int));
+  for(i = 0; i < 5; i+=1){
+	  blocks[i] = 1;
+  }
   write_block_map(disk,blocks);
   int * retublocks = read_block_map(disk);
   for(i = 0; i < 6; i+=1){
@@ -62,6 +65,8 @@ void main(int argc, char *argv[])
   }
   printf("\n");
   free(retublocks);
+  free(blocks);
+
 
   //test writing inode
     printf("\nWriting Inode\n");
@@ -78,6 +83,11 @@ void main(int argc, char *argv[])
   for(i = 0; i < pointers2[i] != '\0'; i+=1){
     printf("%d,",pointers2[i]);
   }
+  printf("\nInode name = %s\n",node->name);
+  printf("Inode block = %d\n",node->block);
+  printf("rewriting inode\n");
+  node = rewriteInode(disk,node);
+  printf("Inode name = %s\n",node->name);
   freeInode(node);
   printf("\nEnd Inode\n");
 
