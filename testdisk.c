@@ -1,141 +1,217 @@
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-//#include "mydisk.h" //already in file_system.h
 #include "file_system.h"
 
+int firstEmpty (int *blocks) {
+    int i;
+    for (i = 0; i < BLOCK_SIZE; i++) {
+        if (blocks[i] == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+int write_file (disk_t disk, char *file_name) {
+    int input;
+    unsigned char *databuf = calloc (BLOCK_SIZE, sizeof (unsigned char));
+
+    FILE *file = fopen (file_name, "r");
+    if (file == NULL) {
+        fflush (NULL);
+        fprintf (stderr, "%s: %s\n", file_name, strerror (errno));
+        fflush (NULL);
+
+        return -1;
+    } else {
+        char buffer[BLOCK_SIZE];
+
+        int i;
+        while (1) {
+            char *word = fgets (buffer, sizeof buffer, file);
+            if (word == NULL) break;
+
+            strcat (databuf, buffer);
+        }
+        printf ("\nFinish reading file\n");
+
+        int *retublocks = read_block_map(disk);
+        int i_node_block = firstEmpty (retublocks);
+        printf ("%d\n", i_node_block);
+        retublocks[i_node_block] = 1;
+        write_block_map (disk, retublocks);
+
+        retublocks = read_block_map(disk);
+        int file_block = firstEmpty (retublocks);
+        printf ("%d\n", file_block);
+        retublocks[file_block] = 1;
+        write_block_map (disk, retublocks);
+
+        printf("\nWriting Inode\n");
+        int pointers[2] = {0, '\0'};
+        pointers[0] = file_block;
+
+        Inode* node = writeInode(disk, i_node_block, pointers ,false, file_name);
+
+        writeblock (disk, file_block, databuf);
+
+        printf("\nWrote successfully\n");
+        return i_node_block;
+    }
+}
+
 void readdisk(disk_t disk, int blocknum){
-   read_super_block(disk);
-   Inode *file = readInode(disk,blocknum);
-   if(file->size == 0) {
-      printf("Is a directory\n");
-      return;
-   }
-   unsigned char *databuf = malloc(disk->block_size * (sizeof(unsigned char)));
-   unsigned char *filebuf = malloc(disk->block_size * file->size * sizeof(unsigned char));
-   int i,j,k;
-   k = 0;
-   for(i=0;i<file->size;++i,++blocknum){
-      readblock(disk,blocknum,databuf);
-      for(j=0;j<(disk->block_size * sizeof(unsigned char));++j,++k){
-         filebuf[k] = databuf[j];
-      }
-   }
-   for(i=0;i<disk->block_size * file->size * sizeof(unsigned char)
-           || filebuf[i] == '\0';++i){
-      putchar(filebuf[i]);
-   }
+    //read_super_block(disk);
+    Inode *file = readInode(disk,blocknum);
+    if(file->size == 0) {
+        printf("Is a directory\n");
+        return;
+    }
+    unsigned char *databuf = malloc(disk->block_size * (sizeof(unsigned char)));
+    unsigned char *filebuf = malloc(disk->block_size * file->size * sizeof(unsigned char));
+    int i,j,k;
+    k = 0;
+    for(i=0;i<file->size;++i,++blocknum){
+        readblock(disk,file->pointers[i],databuf);
+        for(j=0;j<(disk->block_size * sizeof(unsigned char));++j,++k){
+            filebuf[k] = databuf[j];
+        }
+    }
+    for(i=0;i<disk->block_size * file->size * sizeof(unsigned char)
+            || filebuf[i] == '\0';++i){
+        putchar(filebuf[i]);
+    }
 }
 
 void main(int argc, char *argv[])
 {
-  char *disk_name;
-  disk_t disk;
-  unsigned char *databuf;
-  int i, j;
+    char *disk_name;
+    disk_t disk;
+    unsigned char *databuf;
+    int i, j;
 
-  // Read the parameters
-  if(argc != 2) {
-    printf("Usage: testdisk <disk_name>\n");
-    exit(-1);
-  }
+    // Read the parameters
+    if(argc != 2) {
+        printf("Usage: testdisk <disk_name>\n");
+        exit(-1);
+    }
 
-  disk_name = (char *)argv[1];
+    disk_name = (char *)argv[1];
 
-  // Open the disk
-  disk = opendisk(disk_name);
-  
-  //Read and write super block
-  write_super_block(disk);
-  read_super_block(disk);
+    // Open the disk
+    disk = opendisk(disk_name);
 
-  // Set up a buffer for writing and reading
-  databuf = malloc(disk->block_size);
+    //Read and write super block
+    write_super_block(disk);
+    read_super_block(disk);
 
-  //test writing block map
-  printf("testing read and write block map\n");
-  int blocks[6]= {1,1,0,1,0,1};
-  write_block_map(disk,blocks);
-  int * retublocks = read_block_map(disk);
-  for(i = 0; i < 6; i+=1){
-    printf("%d, ",retublocks[i]);
-  }
-  printf("\n");
-  free(retublocks);
+    // Set up a buffer for writing and reading
+    databuf = malloc(disk->block_size);
 
-  //test writing inode
+    //test writing block map
+    printf("testing read and write block map\n");
+    int blocks[6]= {1,1,0,1,0,1};
+    write_block_map(disk,blocks);
+    int * retublocks = read_block_map(disk);
+    for(i = 0; i < 6; i+=1){
+        printf("%d, ",retublocks[i]);
+    }
+    printf("\n");
+    free(retublocks);
+
+    //test writing inode
     printf("\nWriting Inode\n");
     int pointers[4] = {12,243,3,'\0'};
-  Inode* node = writeInode(disk, 3, pointers,false,"test");
+    Inode* node = writeInode(disk, 3, pointers,false,"test");
 
-  //read the Inode;
-  readblock(disk, 3, databuf);
-  printf(databuf);
-  freeInode(node);
-  node = readInode(disk,3);
-  printf("Inode size = %d\n",node->size);
-  int * pointers2 = node->pointers;
-  for(i = 0; i < pointers2[i] != '\0'; i+=1){
-    printf("%d,",pointers2[i]);
-  }
-  freeInode(node);
-  printf("\nEnd Inode\n");
+    //read the Inode;
+    readblock(disk, 3, databuf);
+    printf(databuf);
+    freeInode(node);
+    node = readInode(disk,3);
+    printf("Inode size = %d\n",node->size);
+    int * pointers2 = node->pointers;
+    for(i = 0; i < pointers2[i] != '\0'; i+=1){
+        printf("%d,",pointers2[i]);
+    }
+    freeInode(node);
+    printf("\nEnd Inode\n");
 
-  // Write some blocks
-  printf("Writing some blocks...");
-  for(i = 0; i < disk->size; i++) {
+    // Write some blocks
+    /*printf("Writing some blocks...");
+    for(i = 0; i < disk->size; i++) {
 
-    // Put some data in the block
-    for(j = 0; j < BLOCK_SIZE; j++) 
-      databuf[j] = i;
+        // Put some data in the block
+        for(j = 0; j < BLOCK_SIZE; j++)
+            databuf[j] = i;
 
-    printf("%d ", i);
-    writeblock(disk, i, databuf);
-  }
+        printf("%d ", i);
+        writeblock(disk, i, databuf);
+    }
 
-  printf("\nWrote successfully\n");
+    printf("\nWrote successfully\n");
 
-  // Read some blocks
-  printf("Reading some blocks...");
-  for(i = 0; i < disk->size; i++) {
-    printf("%d ", i);
-    readblock(disk, i, databuf);
+    // Read some blocks
+    printf("Reading some blocks...");
+    for(i = 0; i < disk->size; i++) {
+        printf("%d ", i);
+        readblock(disk, i, databuf);
 
-    // Check the data in the block
-    for(j = 0; j < BLOCK_SIZE; j++)
-      if(databuf[j] != i) {
-	printf("Main: read data different from written data!\n");
-	exit(-1);
-      }
-  }
+        // Check the data in the block
+        for(j = 0; j < BLOCK_SIZE; j++)
+            if(databuf[j] != i) {
+                printf("Main: read data different from written data!\n");
+                exit(-1);
+            }
+    }
 
-  printf("\nRead Successfully and data verified\n");
+    printf("\nRead Successfully and data verified\n");
 
-  // Seek back and read them again
-  printf("Seeking back to block 0\n");
-  seekblock(disk, 0);
+    // Seek back and read them again
+    printf("Seeking back to block 0\n");
+    seekblock(disk, 0);
 
-  // Read some blocks
-  printf("Reading some blocks...");
-  for(i = 0; i < disk->size; i++) {
-    printf("%d ", i);
-    readblock(disk, i, databuf);
+    // Read some blocks
+    printf("Reading some blocks...");
+    for(i = 0; i < disk->size; i++) {
+        printf("%d ", i);
+        readblock(disk, i, databuf);
 
-    // Check the data in the block
-    for(j = 0; j < BLOCK_SIZE; j++)
-      if(databuf[j] != i) {
-	printf("Main: read data different from written data!\n");
-	exit(-1);
-      }
-  }
+        // Check the data in the block
+        for(j = 0; j < BLOCK_SIZE; j++)
+            if(databuf[j] != i) {
+                printf("Main: read data different from written data!\n");
+                exit(-1);
+            }
+    }
 
-  printf("\nRead Successfully and data verified\n");
-  printf("Done reading and writing.\n");
+    printf("\nRead Successfully and data verified\n");
+    printf("Done reading and writing.\n");
+*/
+    // Try seeking past the end of the disk
+    //printf("Seeking off the end of the disk\n");
+    //seekblock(disk, disk->size);
 
-  // Try seeking past the end of the disk
-  //printf("Seeking off the end of the disk\n");
-  //seekblock(disk, disk->size);
-  free(disk);
-  free(databuf);
-  exit(0);
+    char buffer[1000];
+
+    printf ("Enter file name to copy to disk: ");
+
+    char *line = fgets (buffer, sizeof buffer, stdin);
+    line = strchr (buffer, '\n');
+
+    while (line == NULL || buffer[0] == '\0') {
+        line = fgets (buffer, sizeof buffer, stdin);
+        line = strchr (buffer, '\n');
+    }
+    *line = '\0';
+    char *file_name = strdup (buffer);
+
+    int file_num = write_file (disk, file_name);
+    readdisk (disk, file_num);
+
+    free(disk);
+    free(databuf);
+    exit(0);
 }
