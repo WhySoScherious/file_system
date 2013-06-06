@@ -1,3 +1,4 @@
+#include <math.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,11 +15,10 @@ int firstEmpty (int *blocks) {
     }
     return -1;
 }
-int write_file (disk_t disk, char *file_name) {
-    int input;
-    unsigned char *databuf = calloc (BLOCK_SIZE, sizeof (unsigned char));
 
+int write_file (disk_t disk, char *file_name) {
     FILE *file = fopen (file_name, "r");
+
     if (file == NULL) {
         fflush (NULL);
         fprintf (stderr, "%s: %s\n", file_name, strerror (errno));
@@ -26,44 +26,59 @@ int write_file (disk_t disk, char *file_name) {
 
         return -1;
     } else {
-        char buffer[BLOCK_SIZE];
+        unsigned char *databuf = calloc (BLOCK_SIZE, sizeof (unsigned char));
+        unsigned char *filebuf = calloc (BLOCK_SIZE * disk->size, sizeof (unsigned char));
 
-        int i;
-        while (1) {
-            char *word = fgets (buffer, sizeof buffer, file);
-            if (word == NULL) break;
+        int i = 0;
 
-            strcat (databuf, buffer);
-        }
+        while (feof (file) == 0)
+             filebuf[i++] = fgetc(file);
+        filebuf[i - 1] = '\0';
+
+        int num_blocks = ceil ((double) i / BLOCK_SIZE);
+
+        fclose (file);
         printf ("\nFinish reading file\n");
 
         int *retublocks = read_block_map(disk);
         int i_node_block = firstEmpty (retublocks);
-        printf ("%d\n", i_node_block);
+
         retublocks[i_node_block] = 1;
         write_block_map (disk, retublocks);
 
-        retublocks = read_block_map(disk);
-        int file_block = firstEmpty (retublocks);
-        printf ("%d\n", file_block);
-        retublocks[file_block] = 1;
-        write_block_map (disk, retublocks);
+        int file_block;
+        int num_pointers = num_blocks + 1;
+        int pointers[num_pointers];
+        pointers[num_pointers - 1] = '\0';
+
+        for (i = 0; i < num_blocks; i++) {
+            retublocks = read_block_map(disk);
+            file_block = firstEmpty (retublocks);
+            pointers[i] = file_block;
+
+            retublocks[file_block] = 1;
+            write_block_map (disk, retublocks);
+        }
 
         printf("\nWriting Inode\n");
-        int pointers[2] = {0, '\0'};
-        pointers[0] = file_block;
 
-        Inode* node = writeInode(disk, i_node_block, pointers ,false, file_name);
+        Inode* node = writeInode(disk, i_node_block, pointers , false, file_name);
 
-        writeblock (disk, file_block, databuf);
+        int k = 0;
+        for(i = 0; i < num_blocks; ++i, k = k + BLOCK_SIZE) {
+            strncpy (databuf, filebuf + k, BLOCK_SIZE);
+            writeblock (disk, pointers[i], databuf);
+        }
 
         printf("\nWrote successfully\n");
+
+        free (filebuf);
+        free (databuf);
         return i_node_block;
     }
 }
 
 void readdisk(disk_t disk, int blocknum){
-    //read_super_block(disk);
     Inode *file = readInode(disk,blocknum);
     if(file->size == 0) {
         printf("Is a directory\n");
@@ -83,6 +98,7 @@ void readdisk(disk_t disk, int blocknum){
             || filebuf[i] == '\0';++i){
         putchar(filebuf[i]);
     }
+    freeInode (file);
 }
 
 void main(int argc, char *argv[])
@@ -112,104 +128,65 @@ void main(int argc, char *argv[])
 
     //test writing block map
     printf("testing read and write block map\n");
-    int blocks[6]= {1,1,0,1,0,1};
-    write_block_map(disk,blocks);
+    int *bmap = calloc (7, disk->size);
+
+    for (i = 0; i < 7; i++) {
+        bmap[i] = 1;
+    }
+
+    write_block_map(disk,bmap);
     int * retublocks = read_block_map(disk);
-    for(i = 0; i < 6; i+=1){
+    for(i = 0; i < 7; i+=1){
         printf("%d, ",retublocks[i]);
     }
+
     printf("\n");
     free(retublocks);
 
-    //test writing inode
-    printf("\nWriting Inode\n");
-    int pointers[4] = {12,243,3,'\0'};
-    Inode* node = writeInode(disk, 3, pointers,false,"test");
-
-    //read the Inode;
-    readblock(disk, 3, databuf);
-    printf(databuf);
-    freeInode(node);
-    node = readInode(disk,3);
-    printf("Inode size = %d\n",node->size);
-    int * pointers2 = node->pointers;
-    for(i = 0; i < pointers2[i] != '\0'; i+=1){
-        printf("%d,",pointers2[i]);
-    }
-    freeInode(node);
-    printf("\nEnd Inode\n");
-
-    // Write some blocks
-    /*printf("Writing some blocks...");
-    for(i = 0; i < disk->size; i++) {
-
-        // Put some data in the block
-        for(j = 0; j < BLOCK_SIZE; j++)
-            databuf[j] = i;
-
-        printf("%d ", i);
-        writeblock(disk, i, databuf);
-    }
-
-    printf("\nWrote successfully\n");
-
-    // Read some blocks
-    printf("Reading some blocks...");
-    for(i = 0; i < disk->size; i++) {
-        printf("%d ", i);
-        readblock(disk, i, databuf);
-
-        // Check the data in the block
-        for(j = 0; j < BLOCK_SIZE; j++)
-            if(databuf[j] != i) {
-                printf("Main: read data different from written data!\n");
-                exit(-1);
-            }
-    }
-
-    printf("\nRead Successfully and data verified\n");
-
-    // Seek back and read them again
-    printf("Seeking back to block 0\n");
-    seekblock(disk, 0);
-
-    // Read some blocks
-    printf("Reading some blocks...");
-    for(i = 0; i < disk->size; i++) {
-        printf("%d ", i);
-        readblock(disk, i, databuf);
-
-        // Check the data in the block
-        for(j = 0; j < BLOCK_SIZE; j++)
-            if(databuf[j] != i) {
-                printf("Main: read data different from written data!\n");
-                exit(-1);
-            }
-    }
-
-    printf("\nRead Successfully and data verified\n");
-    printf("Done reading and writing.\n");
-*/
-    // Try seeking past the end of the disk
-    //printf("Seeking off the end of the disk\n");
-    //seekblock(disk, disk->size);
-
     char buffer[1000];
 
-    printf ("Enter file name to copy to disk: ");
-
-    char *line = fgets (buffer, sizeof buffer, stdin);
-    line = strchr (buffer, '\n');
-
-    while (line == NULL || buffer[0] == '\0') {
-        line = fgets (buffer, sizeof buffer, stdin);
+    int file_num;
+    do {
+        printf ("Enter file name to copy to disk: ");
+        char *line = fgets (buffer, sizeof buffer, stdin);
         line = strchr (buffer, '\n');
-    }
-    *line = '\0';
-    char *file_name = strdup (buffer);
 
-    int file_num = write_file (disk, file_name);
-    readdisk (disk, file_num);
+        while (line == NULL || buffer[0] == '\0') {
+            line = fgets (buffer, sizeof buffer, stdin);
+            line = strchr (buffer, '\n');
+        }
+        *line = '\0';
+        char *file_name = strdup (buffer);
+
+        file_num = write_file (disk, file_name);
+    } while (file_num == -1);
+
+    do {
+        printf ("Enter file name to print out: ");
+        char *line = fgets (buffer, sizeof buffer, stdin);
+        line = strchr (buffer, '\n');
+
+        while (line == NULL || buffer[0] == '\0') {
+            line = fgets (buffer, sizeof buffer, stdin);
+            line = strchr (buffer, '\n');
+        }
+        *line = '\0';
+        char *file_name = strdup (buffer);
+
+        for (i = 7; i < disk->size; i++) {
+            Inode* node = readInode (disk, i);
+            printf ("%s %s", file_name, node->name);
+            if (strcmp (file_name, node->name) == 0) {
+                file_num = i;
+                break;
+            }
+            file_num = -1;
+        }
+
+        if (file_num != -1) {
+            readdisk (disk, file_num);
+        }
+    } while (file_num == -1);
 
     free(disk);
     free(databuf);

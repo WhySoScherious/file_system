@@ -220,6 +220,7 @@ Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory, char *
         name[i] = nametemp[i];
     }
     name[i] = '\0';
+
     for(i = 0; i < size; i+=1){
         pointers[i] = gpointers[i];
     }
@@ -299,7 +300,7 @@ Inode* readInode(disk_t disk, int block){
         }else if(!gotname){
             if(databuf[i] == '\n'){
                 name = malloc(sizeof(char) * numberbufIndex);
-                for(j = 0; j < numberbufIndex; j+=1){
+                for(j = 0; j < numberbufIndex; j+=1) {
                     name[j] = numberbuf[j];
                 }
                 gotname = true;
@@ -372,7 +373,7 @@ void write_block_map(disk_t disk, int * bmap){
    and the user can fill it with 0s and 1s to start*/
     //i = block number
     int bitmapindex = 0;
-    for(i = 2; bitmapindex < disk->size;i+=1){
+    for(i = 2; bitmapindex < disk->size; i += 1){
         int bufindex = 0;
         while(bufindex < disk->block_size && bitmapindex < disk->size){
             databuf[bufindex] = (bmap[bitmapindex] == 0)? '0' : '1';
@@ -382,8 +383,8 @@ void write_block_map(disk_t disk, int * bmap){
         if(bitmapindex == disk->size && bufindex < disk->block_size){
             databuf[bufindex] = '\0'; //terminate
         }
-        printf("wrote blockmap %s to %d\n",databuf,i);
-        writeblock(disk,i,databuf);
+        printf("wrote blockmap %s to %d\n", databuf, i);
+        writeblock(disk, i, databuf);
     }
     free(databuf);
 }
@@ -402,7 +403,8 @@ int * read_block_map(disk_t disk)
 
         for(j = 0; databuf[j] != '\0' && j < disk->block_size; j+=1){
 
-            // buf[L] = str2int(databuf[j]); // instead of databuf[j], we should just have databuf since str2int takes in a char *
+            // buf[L] = str2int(databuf[j]); // instead of databuf[j],
+            // we should just have databuf since str2int takes in a char *
             buf[L] = (databuf[j] == '0')? 0 : 1;
             // printf("reading %d \n",str2int(data
             L +=1;
