@@ -157,22 +157,44 @@ void main(int argc, char *argv[])
     // Set up a buffer for writing and reading
     databuf = malloc(disk->block_size);
 
-    //test writing block map
-    printf("testing read and write block map\n");
-    int *bmap = calloc (7, disk->size);
+  //test writing block map
+  printf("testing read and write block map\n");
+  int * blocks = calloc(disk->size,sizeof(int));
+  for(i = 0; i < 5; i+=1){
+	  blocks[i] = 1;
+  }
+  write_block_map(disk,blocks);
+  int * retublocks = read_block_map(disk);
+  for(i = 0; i < 6; i+=1){
+    printf("%d, ",retublocks[i]);
+  }
+  printf("\n");
+  free(retublocks);
+  free(blocks);
 
-    for (i = 0; i < 7; i++) {
-        bmap[i] = 1;
-    }
 
-    write_block_map(disk,bmap);
-    int * retublocks = read_block_map(disk);
-    for(i = 0; i < 7; i+=1){
-        printf("%d, ",retublocks[i]);
-    }
+  //test writing inode
+    printf("\nWriting Inode\n");
+    int pointers[4] = {12,243,3,'\0'};
+  Inode* node = writeInode(disk, 3, pointers,false,"test");
 
-    printf("\n");
-    free(retublocks);
+  //read the Inode;
+  readblock(disk, 3, databuf);
+  printf(databuf);
+  freeInode(node);
+  node = readInode(disk,3);
+  printf("Inode size = %d\n",node->size);
+  int * pointers2 = node->pointers;
+  for(i = 0; i < pointers2[i] != '\0'; i+=1){
+    printf("%d,",pointers2[i]);
+  }
+  printf("\nInode name = %s\n",node->name);
+  printf("Inode block = %d\n",node->block);
+  printf("rewriting inode\n");
+  node = rewriteInode(disk,node);
+  printf("Inode name = %s\n",node->name);
+  freeInode(node);
+  printf("\nEnd Inode\n");
 
     int file_num;
     do {
