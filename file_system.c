@@ -238,7 +238,6 @@ Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory, char *
 	}
 	wpointers[i] = '\0';
 	pointers[i] = '\0';
-	printf("maxsize = %d\n",maxsize);
 	char * potSize;
 	if(size > (maxsize)){ //-4 for 3 \n and 1 \0 - 16 for name length
 		int * newpointers = malloc(sizeof(int) * (maxsize+1));
@@ -284,26 +283,18 @@ Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory, char *
 	unsigned char *databuf = calloc(disk->block_size, sizeof(unsigned char) );
 	copy2buf(databuf,strings,0);
 	writeblock(disk,block,databuf);
-	printf("1\n");
 	free(list);
-	printf("2\n");
 	free(pntrs);
-	printf("3\n");
 	free(databuf);
-	printf("4\n");
 	//free(name);
-	printf("5\n");
 	free(blkmap);
-	printf("6\n");
 	free(potSize);
-	printf("7\n");
 	free(wpointers);
 	return createInode(size,pointers,directory,block,name);
 }
 
 Inode* readInode(disk_t disk, int block){
 	char * databuf = malloc(sizeof(char) * disk->block_size);
-	printf("reading block %d\n",block);
 	readblock(disk,block,databuf);
 	int size;
 	int i,j;
@@ -376,11 +367,9 @@ Inode* readInode(disk_t disk, int block){
 	}
 	int * pointersSmall = malloc(sizeof(int) * (pointersIndex+1));
 	for(i = 0; i < pointersIndex;i+=1){
-		printf("pointers = %d ",pointers[i]);
 		pointersSmall[i] = pointers[i];
 	}
 	pointersSmall[i] = '\0';
-	printf("\n");
 	Inode * node = createInode(size,pointersSmall,(size ==0)? true : false, block,name);
 	free(numberbuf);
 	free(databuf);
@@ -466,7 +455,6 @@ int * read_block_map(disk_t disk)
 
 		}
 	}
-	printf("L = %d\n",L);
 
 	free(databuf);
 
