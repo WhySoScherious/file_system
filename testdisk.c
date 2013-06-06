@@ -6,6 +6,20 @@
 #include <unistd.h>
 #include "file_system.h"
 
+char * get_input () {
+    char buffer[1000];
+
+    char *line = fgets (buffer, sizeof buffer, stdin);
+    line = strchr (buffer, '\n');
+
+    while (line == NULL || buffer[0] == '\0') {
+        line = fgets (buffer, sizeof buffer, stdin);
+        line = strchr (buffer, '\n');
+    }
+    *line = '\0';
+    return strdup (buffer);
+}
+
 int firstEmpty (int *blocks) {
     int i;
     for (i = 0; i < BLOCK_SIZE; i++) {
@@ -66,7 +80,7 @@ int write_file (disk_t disk, char *file_name) {
         Inode *root = readInode (disk, 1);
 
         int size = arrayLength(root->pointers) + 1;
-        printf("%d\n", size);
+
         int *ptrs = calloc (size + 1, sizeof (int));
         for (i = 0; i < size - 1; i++) {
             ptrs[i] = root->pointers[i];
@@ -75,6 +89,7 @@ int write_file (disk_t disk, char *file_name) {
         ptrs[i++] = i_node_block;
         ptrs[i] = '\0';
         root->pointers = ptrs;
+        writeInode (disk, 1, root->pointers, root->isDirectory, root->name);
 
         int k = 0;
         for(i = 0; i < num_blocks; ++i, k = k + BLOCK_SIZE) {
@@ -86,6 +101,7 @@ int write_file (disk_t disk, char *file_name) {
 
         free (filebuf);
         free (databuf);
+
         return i_node_block;
     }
 }
@@ -158,43 +174,30 @@ void main(int argc, char *argv[])
     printf("\n");
     free(retublocks);
 
-    char buffer[1000];
-
     int file_num;
     do {
         printf ("Enter file name to copy to disk: ");
-        char *line = fgets (buffer, sizeof buffer, stdin);
-        line = strchr (buffer, '\n');
 
-        while (line == NULL || buffer[0] == '\0') {
-            line = fgets (buffer, sizeof buffer, stdin);
-            line = strchr (buffer, '\n');
-        }
-        *line = '\0';
-        char *file_name = strdup (buffer);
+        char *file_name = get_input();
 
         file_num = write_file (disk, file_name);
     } while (file_num == -1);
 
+    file_num = -1;
+
     do {
         printf ("Enter file name to print out: ");
-        char *line = fgets (buffer, sizeof buffer, stdin);
-        line = strchr (buffer, '\n');
 
-        while (line == NULL || buffer[0] == '\0') {
-            line = fgets (buffer, sizeof buffer, stdin);
-            line = strchr (buffer, '\n');
-        }
-        *line = '\0';
-        char *file_name = strdup (buffer);
+        char *file_name = get_input();
 
         Inode *root = readInode (disk, 1);
+        int size = arrayLength (root->pointers);
 
-        for (i = 0; i < arrayLength (root->pointers); i++) {
+        for (i = 0; i < size; i++) {
             Inode* node = readInode (disk, root->pointers[i]);
 
             if (strcmp (file_name, node->name) == 0) {
-                file_num = i;
+                file_num = root->pointers[i];
                 break;
             }
             file_num = -1;
@@ -202,6 +205,10 @@ void main(int argc, char *argv[])
 
         if (file_num != -1) {
             readdisk (disk, file_num);
+        } else {
+            fflush (NULL);
+            fprintf (stderr, "%s: file not found\n", file_name);
+            fflush (NULL);
         }
     } while (file_num == -1);
 

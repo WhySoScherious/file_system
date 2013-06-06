@@ -160,9 +160,9 @@ int arrayLength(int * intarray){
     return i;
 }
 
-Inode * rewriteInode(disk_t disk, Inode* inode, int *pointers){
+Inode *rewriteInode(disk_t disk, Inode* inode) {
     deleteInode(disk,inode);
-    Inode* newinode = writeInode(disk, inode->block, pointers , inode->isDirectory, inode->name);
+    Inode* newinode = writeInode(disk, inode->block, inode->pointers , inode->isDirectory, inode->name);
     freeInode(inode);
     return newinode;
 }
