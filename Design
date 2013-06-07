@@ -1,7 +1,7 @@
-Nick 
-Chase
-Maria
-Paul
+Nick Smith
+Chase Wilson
+Maria Mishkova
+Paul Scherer
 
 Design Document
 Assignment 3: File System
@@ -137,7 +137,8 @@ bmap - array of 0 and 1
 
 14. Inode* rewriteInode(disk_t disk, Inode* inode)
  - removes and writes the updated Inode in the old location
+
+Functions above tested in testdisk.c
  
 testdisk.c:
-
-Functions above tested in testdisk.c 
+1. 
