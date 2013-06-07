@@ -30,7 +30,7 @@ int firstEmpty (int *blocks) {
     return -1;
 }
 
-int write_file (disk_t disk, char *file_name) {
+int write_file (disk_t disk, char *file_name,Inode * root) {
     FILE *file = fopen (file_name, "r");
 
     if (file == NULL) {
@@ -77,7 +77,7 @@ int write_file (disk_t disk, char *file_name) {
         printf("\nWriting Inode\n");
 
         Inode *node = writeInode(disk, i_node_block, pointers, false, file_name);
-        Inode *root = readInode (disk, 1);
+        //Inode *root = readInode (disk, 1);
 
         int size = arrayLength(root->pointers) + 1;
 
@@ -88,6 +88,7 @@ int write_file (disk_t disk, char *file_name) {
 
         ptrs[i++] = i_node_block;
         ptrs[i] = '\0';
+    	free(root->pointers);
         root->pointers = ptrs;
         writeInode (disk, 1, root->pointers, root->isDirectory, root->name);
 
@@ -101,15 +102,13 @@ int write_file (disk_t disk, char *file_name) {
 
         free (filebuf);
         free (databuf);
-
+		freeInode(node);
         return i_node_block;
     }
 }
 
-void ls (disk_t disk) {
-    Inode *root = readInode (disk, 1);
+void ls (disk_t disk,Inode * root) {
     int size = arrayLength (root->pointers);
-
     int i;
     for (i = 0; i < size; i++) {
         Inode* node = readInode (disk, root->pointers[i]);
@@ -123,8 +122,7 @@ void ls (disk_t disk) {
  * Return -1 if the file name is invalid, else return i-node number of
  * file.
  */
-int check_file (disk_t disk, char *file_name) {
-    Inode *root = readInode (disk, 1);
+int check_file (disk_t disk, char *file_name, Inode* root) {
     int size = arrayLength (root->pointers);
 
     int file_num = -1;
@@ -136,6 +134,7 @@ int check_file (disk_t disk, char *file_name) {
             file_num = root->pointers[i];
             break;
         }
+		freeInode(node);
         file_num = -1;
     }
 
@@ -165,13 +164,81 @@ void readdisk(disk_t disk, int blocknum){
     freeInode (file);
 }
 
+void mkdir2(disk_t disk, Inode ** currdir, char * name){
+	int * blkmap = read_block_map(disk);
+	int newblkloc;
+	int i,j;
+	for(newblkloc = 0; newblkloc < disk->size;newblkloc+=1){
+		if(blkmap[newblkloc] == 0)
+			break;
+	}
+	int pointers[1];
+	pointers[0] = 0;
+	freeInode(writeInode(disk,newblkloc,pointers,true,name));
+	for(i = 0; currdir[0]->pointers[i] != '\0'; i+=1);
+	int * newpointers = calloc(i+2,sizeof(int));
+	for(j = 0; j < i;j+=1){
+		newpointers[j] = currdir[0]->pointers[j];
+	}
+	newpointers[j] = newblkloc;
+	newpointers[j+1] = '\0';
+	free(currdir[0]->pointers);
+	currdir[0]->pointers = newpointers;
+
+	*currdir = rewriteInode(disk,currdir[0]);
+}
+Inode * cd2(disk_t disk,char * arg,Inode *currdir,int ** history){
+	int i,j,k;
+	if(strcmp(arg,"..") == 0){
+		for(i=0; history[0][i] != 0; i+=1);
+		if(i != 0){
+			int * newhistory = calloc(i-1,sizeof(int));
+			for(k = 0; k < i-1;k+=1){
+				newhistory[k] = history[0][k];
+			}
+			int returnto = history[0][i-1];
+			newhistory[k] = 0;
+			free(*history);
+			*history = newhistory;
+			freeInode(currdir);
+			printf("returning to %d\n",returnto);
+			return(readInode(disk,returnto));
+		}
+	}else{
+		for(i = 0; currdir->pointers[i] != '\0';i+=1){
+			printf("looking for pointer %d\n",currdir->pointers[i]);
+			Inode * node = readInode(disk,currdir->pointers[i]);
+			if(strcmp(arg,node->name) == 0 && node->isDirectory){
+				for(j = 0; history[0][j] != 0; j+=1);
+				int * newhistory = calloc(j+1,sizeof(int));
+				for(k = 0; k < j;k+=1){
+					newhistory[k] = history[0][k];
+				}
+				newhistory[k] = currdir->block;
+				newhistory[k+1] = 0;
+				free(history[0]);
+				*history = newhistory;
+				freeInode(currdir);
+				printf("found\n");
+				return node;
+			}
+		}
+	}
+	printf("dir %s, not found\n",arg);
+	return currdir;
+}
+
+
 void main(int argc, char *argv[])
 {
+	Inode * currdir;
     char *disk_name;
     disk_t disk;
     unsigned char *databuf;
     int i, j;
-
+	int * history = calloc(2,sizeof(int));
+	history[0] = 1;
+	history[1] = 0;
     // Read the parameters
     if(argc != 2) {
         printf("Usage: testdisk <disk_name>\n");
@@ -211,13 +278,14 @@ void main(int argc, char *argv[])
     // Write the root directory
     printf ("Writing root directory\n");
     write_root_dir (disk);
+	currdir = readInode(disk,1);
 
     while (1) {
         printf ("\n$ ");
         char *command = get_input();
 
         if (strcmp (command, "ls") == 0) {
-            ls (disk);
+            ls (disk,currdir);
         } else if (strcmp (command, "exit") == 0) {
             break;
         } else if (strstr (command, " ") == NULL) {
@@ -230,16 +298,25 @@ void main(int argc, char *argv[])
             char *arg = cmd + 1;
 
             if (strcmp (command, "cp") == 0) {
-                if (check_file (disk, arg) == -1) {
-                    write_file (disk, arg);
+                if (check_file (disk, arg,currdir) == -1) {
+                    write_file (disk, arg,currdir);
                 } else {
                     fflush (NULL);
                     fprintf (stderr, "%s: %s: a file with that name"
                             " already exits\n", command, arg);
                     fflush (NULL);
                 }
-            } else if ((strcmp (command, "cat") == 0)) {
-                int file_num = check_file (disk, arg);
+            }else if((strcmp (command,"mkdir") == 0)){
+				mkdir2(disk,&currdir,arg);
+				printf("new pointers = ");
+	for(i = 0;currdir->pointers[i] != '\0';i+=1){
+		printf("%d",currdir->pointers[i]);
+	}
+	printf("\n");
+			}else if((strcmp(command,"cd") == 0)){
+				currdir = cd2(disk,arg,currdir,&history);
+			}else if ((strcmp (command, "cat") == 0)) {
+                int file_num = check_file (disk, arg,currdir);
 
                 if (file_num != -1) {
                     readdisk (disk, file_num);
