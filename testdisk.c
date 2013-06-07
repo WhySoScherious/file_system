@@ -230,7 +230,14 @@ void main(int argc, char *argv[])
             char *arg = cmd + 1;
 
             if (strcmp (command, "cp") == 0) {
-                write_file (disk, arg);
+                if (check_file (disk, arg) == -1) {
+                    write_file (disk, arg);
+                } else {
+                    fflush (NULL);
+                    fprintf (stderr, "%s: %s: a file with that name"
+                            " already exits\n", command, arg);
+                    fflush (NULL);
+                }
             } else if ((strcmp (command, "cat") == 0)) {
                 int file_num = check_file (disk, arg);
 
