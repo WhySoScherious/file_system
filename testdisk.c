@@ -106,6 +106,42 @@ int write_file (disk_t disk, char *file_name) {
     }
 }
 
+void ls (disk_t disk) {
+    Inode *root = readInode (disk, 1);
+    int size = arrayLength (root->pointers);
+
+    int i;
+    for (i = 0; i < size; i++) {
+        Inode* node = readInode (disk, root->pointers[i]);
+
+        printf ("%s   ", node->name);
+    }
+    printf ("\n");
+}
+
+/*
+ * Return -1 if the file name is invalid, else return i-node number of
+ * file.
+ */
+int check_file (disk_t disk, char *file_name) {
+    Inode *root = readInode (disk, 1);
+    int size = arrayLength (root->pointers);
+
+    int file_num;
+    int i;
+    for (i = 0; i < size; i++) {
+        Inode* node = readInode (disk, root->pointers[i]);
+
+        if (strcmp (file_name, node->name) == 0) {
+            file_num = root->pointers[i];
+            break;
+        }
+        file_num = -1;
+    }
+
+    return file_num;
+}
+
 void readdisk(disk_t disk, int blocknum){
     Inode *file = readInode(disk,blocknum);
     if(file->size == 0) {
@@ -154,86 +190,46 @@ void main(int argc, char *argv[])
     // Set up a buffer for writing and reading
     databuf = malloc(disk->block_size);
 
-    //test writing block map
-    printf("testing read and write block map\n");
-    int * blocks = calloc(disk->size,sizeof(int));
-    for(i = 0; i < 5; i+=1){
-        blocks[i] = 1;
-    }
-    write_block_map(disk,blocks);
-    int * retublocks = read_block_map(disk);
-    for(i = 0; i < 6; i+=1){
-        printf("%d, ",retublocks[i]);
-    }
-    printf("\n");
-    free(retublocks);
-    free(blocks);
-
     // Write the root directory
     printf ("Writing root directory\n");
     write_root_dir (disk);
 
+    while (1) {
+        printf ("\n$ ");
+        char *command = get_input();
 
-    //test writing inode
-    printf("\nWriting Inode\n");
-    int pointers[4] = {12,243,3,'\0'};
-    Inode* node = writeInode(disk, 3, pointers,false,"test");
-
-    //read the Inode;
-    readblock(disk, 3, databuf);
-    printf(databuf);
-    freeInode(node);
-    node = readInode(disk,3);
-    printf("Inode size = %d\n",node->size);
-    int * pointers2 = node->pointers;
-    for(i = 0; i < pointers2[i] != '\0'; i+=1){
-        printf("%d,",pointers2[i]);
-    }
-    printf("\nInode name = %s\n",node->name);
-    printf("Inode block = %d\n",node->block);
-    printf("rewriting inode\n");
-    node = rewriteInode(disk,node);
-    printf("Inode name = %s\n",node->name);
-    freeInode(node);
-    printf("\nEnd Inode\n");
-
-    int file_num;
-    do {
-        printf ("Enter file name to copy to disk: ");
-
-        char *file_name = get_input();
-
-        file_num = write_file (disk, file_name);
-    } while (file_num == -1);
-
-    file_num = -1;
-
-    do {
-        printf ("Enter file name to print out: ");
-
-        char *file_name = get_input();
-
-        Inode *root = readInode (disk, 1);
-        int size = arrayLength (root->pointers);
-
-        for (i = 0; i < size; i++) {
-            Inode* node = readInode (disk, root->pointers[i]);
-
-            if (strcmp (file_name, node->name) == 0) {
-                file_num = root->pointers[i];
-                break;
-            }
-            file_num = -1;
-        }
-
-        if (file_num != -1) {
-            readdisk (disk, file_num);
+        if (strcmp (command, "ls") == 0) {
+            ls (disk);
+        } else if (strcmp (command, "exit") == 0) {
+            break;
+        } else if (strstr (command, " ") == NULL) {
+            fflush (NULL);
+            fprintf (stderr, "%s: command not found\n", command);
+            fflush (NULL);
         } else {
-            fflush (NULL);
-            fprintf (stderr, "%s: file not found\n", file_name);
-            fflush (NULL);
+            char *cmd = strstr (command, " ");
+            *cmd = '\0';
+            char *arg = cmd + 1;
+
+            if (strcmp (command, "cp") == 0) {
+                write_file (disk, arg);
+            } else if ((strcmp (command, "cat") == 0)) {
+                int file_num = check_file (disk, arg);
+
+                if (file_num != -1) {
+                    readdisk (disk, file_num);
+                } else {
+                    fflush (NULL);
+                    fprintf (stderr, "%s: No such file or directory\n", arg);
+                    fflush (NULL);
+                }
+            } else {
+                fflush (NULL);
+                fprintf (stderr, "%s: command not found\n", command);
+                fflush (NULL);
+            }
         }
-    } while (file_num == -1);
+    }
 
     free(disk);
     free(databuf);
