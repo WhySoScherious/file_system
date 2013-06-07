@@ -243,6 +243,9 @@ void readdisk(disk_t disk, int blocknum){
     freeInode (file);
 }
 
+/*
+ * Creates a directory within the current directory.
+ */
 void mkdir2(disk_t disk, Inode ** currdir, char * name){
     int * blkmap = read_block_map(disk);
     int newblkloc;
@@ -267,6 +270,12 @@ void mkdir2(disk_t disk, Inode ** currdir, char * name){
     *currdir = rewriteInode(disk,currdir[0]);
 }
 
+/*
+ * Changes the current directory in the "disk". Returns to the previous
+ * level directory if "cd .." was passed. If the directory exists,
+ * return the i-node of the directory, else return the current
+ * directory.
+ */
 Inode * cd2(disk_t disk,char * arg,Inode *currdir,int ** history){
     int i,j,k;
     if(strcmp(arg,"..") == 0){
@@ -308,58 +317,16 @@ Inode * cd2(disk_t disk,char * arg,Inode *currdir,int ** history){
     return currdir;
 }
 
-void exec_shell () {
-
-}
-
-void main(int argc, char *argv[])
-{
+void exec_shell (disk_t disk) {
     Inode *currdir;
-    char *disk_name;
-    disk_t disk;
-    unsigned char *databuf;
-    int i, j;
+
+    // Set the current directory to the root
+    currdir = readInode(disk, 1);
 
     int *history = calloc (2, sizeof (int));
     history[0] = 1;
     history[1] = 0;
 
-    // Read the parameters
-    if(argc != 2) {
-        printf("Usage: testdisk <disk_name>\n");
-        exit(-1);
-    }
-
-    disk_name = (char *)argv[1];
-
-    // Open the disk
-    disk = opendisk(disk_name);
-
-    //Read and write super block
-    write_super_block(disk);
-    read_super_block(disk);
-
-    // Set up a buffer for writing and reading
-    databuf = malloc(disk->block_size);
-
-    // Fill the first 5 blocks in bitmap as used
-    int * blocks = calloc(disk->size,sizeof(int));
-
-    // Set the corresponding blocks as used with a '1'
-    for(i = 0; i < 5; i+=1){
-        blocks[i] = 1;
-    }
-
-    write_block_map(disk,blocks);
-
-    free(blocks);
-
-    // Write the root directory
-    printf ("Writing root directory\n");
-    write_root_dir (disk);
-
-    // Set the current directory to the root
-    currdir = readInode(disk, 1);
     char *curr_dir_string = malloc (BLOCK_SIZE);
     curr_dir_string[0] = '\0';
 
@@ -460,6 +427,51 @@ void main(int argc, char *argv[])
             }
         }
     }
+}
+
+void main(int argc, char *argv[])
+{
+    char *disk_name;
+    disk_t disk;
+    unsigned char *databuf;
+    int i, j;
+
+    // Read the parameters
+    if(argc != 2) {
+        printf("Usage: testdisk <disk_name>\n");
+        exit(-1);
+    }
+
+    disk_name = (char *)argv[1];
+
+    // Open the disk
+    disk = opendisk(disk_name);
+
+    //Read and write super block
+    write_super_block(disk);
+    read_super_block(disk);
+
+    // Set up a buffer for writing and reading
+    databuf = malloc(disk->block_size);
+
+    // Fill the first 5 blocks in bitmap as used
+    int * blocks = calloc(disk->size,sizeof(int));
+
+    // Set the corresponding blocks as used with a '1'
+    for(i = 0; i < 5; i+=1){
+        blocks[i] = 1;
+    }
+
+    write_block_map(disk,blocks);
+
+    free(blocks);
+
+    // Write the root directory
+    printf ("Writing root directory\n");
+    write_root_dir (disk);
+
+    // Execute the shell program
+    exec_shell (disk);
 
     free(disk);
     free(databuf);
