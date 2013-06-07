@@ -151,10 +151,6 @@ void main(int argc, char *argv[])
     write_super_block(disk);
     read_super_block(disk);
 
-    // Write the root directory
-    printf ("Writing root directory\n");
-    write_root_dir (disk);
-
     // Set up a buffer for writing and reading
     databuf = malloc(disk->block_size);
 
@@ -172,6 +168,10 @@ void main(int argc, char *argv[])
     printf("\n");
     free(retublocks);
     free(blocks);
+
+    // Write the root directory
+    printf ("Writing root directory\n");
+    write_root_dir (disk);
 
 
     //test writing inode
