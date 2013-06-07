@@ -141,4 +141,41 @@ bmap - array of 0 and 1
 Functions above tested in testdisk.c
  
 testdisk.c:
-1. 
+1. get_input()
+	Gets the user input from keyboard and returns it as a string.
+	input: nothing
+	output: user input string 
+	
+2. write_file()
+ 	Copies a file from your Unix directory into your "disk" directory.
+ 	input: "disk", file name, and i-node of directory
+ 	output: i-node block number
+
+3. ls()
+ 	Lists the files from the "disk" directory and prints file names to
+ 	screen.
+ 	input: disk, directory i-node
+ 	output: nothing
+
+4. check_file()  
+	Checks if the file exists on the disk.
+	input: "disk", file name, directory i-node
+	output: Returns -1 if the file doesn't exist, else return i-node
+					number of file.
+
+5. readdisk()  
+	Reads a file from your "disk" and prints it out to screen.
+	input: disk, block number of file i-node
+	ouput: nothing
+
+6. mkdir()
+	Creates a directory within the current directory.
+	input: disk, current directory i-node, name of new directory
+	output: nothing
+
+7. cd()
+	Changes the current directory in the "disk".
+	input: disk, directory to go to, i-node of current directory
+	output: Returns to the previous level directory if "cd .." was
+					passed. If the directory exists, return the i-node of the
+					directory, else return the current directory.
