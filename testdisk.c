@@ -127,7 +127,7 @@ int check_file (disk_t disk, char *file_name) {
     Inode *root = readInode (disk, 1);
     int size = arrayLength (root->pointers);
 
-    int file_num;
+    int file_num = -1;
     int i;
     for (i = 0; i < size; i++) {
         Inode* node = readInode (disk, root->pointers[i]);
