@@ -390,6 +390,7 @@ void write_root_dir(disk_t disk){
     int *pointers = calloc (1, sizeof (int));
     pointers[0] = '\0';
 	Inode * node = writeInode(disk,1,pointers,true,"/");
+	free(pointers);
 	freeInode(node);
 }
 
