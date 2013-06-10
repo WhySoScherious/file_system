@@ -62,7 +62,7 @@ int first_empty (int *blocks) {
 /*
  * Copies a file from your Unix directory into your "disk" directory.
  */
-int write_file (disk_t disk, char *file_name, Inode *root) {
+Inode * write_file (disk_t disk, char *file_name, Inode *root) {
     FILE *file = fopen (file_name, "r");
 
     if (file == NULL) {
@@ -104,7 +104,6 @@ int write_file (disk_t disk, char *file_name, Inode *root) {
          */
         retublocks[i_node_block] = 1;
         write_block_map (disk, retublocks);
-
         int file_block;         // Block number the file will go in
 
         // Size of the array of disk block pointers
@@ -119,14 +118,16 @@ int write_file (disk_t disk, char *file_name, Inode *root) {
          * as used, and store the block number in the disk block
          * pointer array.
          */
+    	
         for (i = 0; i < num_blocks; i++) {
-            retublocks = read_block_map(disk);
             file_block = first_empty (retublocks);
             pointers[i] = file_block;
 
             retublocks[file_block] = 1;
-            write_block_map (disk, retublocks);
+            
         }
+		write_block_map (disk, retublocks);
+		free(retublocks);
 
         /*
          * Now add the i-node number of the file to the root i-node
@@ -136,13 +137,13 @@ int write_file (disk_t disk, char *file_name, Inode *root) {
         Inode *node = writeInode(disk, i_node_block, pointers, false, file_name);
 
         // Size of the number of files on the disk
-        int size = arrayLength(root->pointers) + 1;
+        int size = arrayLength(root->pointers);
 
         // New array of pointers for file i-nodes.
-        int *ptrs = calloc (size + 1, sizeof (int));
+        int *ptrs = calloc (size + 2, sizeof (int));
 
         // Copy the existing array of pointers to new array.
-        for (i = 0; i < size - 1; i++) {
+        for (i = 0; i < size; i++) {
             ptrs[i] = root->pointers[i];
         }
 
@@ -152,10 +153,15 @@ int write_file (disk_t disk, char *file_name, Inode *root) {
          */
         ptrs[i++] = i_node_block;
         ptrs[i] = '\0';
+		printf("printing POINTERS:");
+		for(i = 0; ptrs[i] != '\0';i+=1){
+			printf("%d,",ptrs[i]);
+		}
+		printf("\n");
         free(root->pointers);
 
         root->pointers = ptrs;
-        writeInode (disk, 1, root->pointers, root->isDirectory, root->name);
+        root = rewriteInode (disk, root);
 
         // Write the file to the "disk"
         int k = 0;
@@ -168,7 +174,7 @@ int write_file (disk_t disk, char *file_name, Inode *root) {
         free (filebuf);
         free (databuf);
         freeInode(node);
-        return i_node_block;
+        return root;
     }
 }
 
@@ -183,6 +189,7 @@ void ls (disk_t disk, Inode *root) {
     for (i = 0; i < size; i++) {
         Inode* node = readInode (disk, root->pointers[i]);
         printf ("%s   ", node->name);
+		freeInode(node);
     }
     printf ("\n");
 }
@@ -254,6 +261,7 @@ void mkdir2(disk_t disk, Inode ** currdir, char * name){
         if(blkmap[newblkloc] == 0)
             break;
     }
+	free(blkmap);
     int pointers[1];
     pointers[0] = 0;
     freeInode(writeInode(disk,newblkloc,pointers,true,name));
@@ -281,7 +289,7 @@ Inode * cd2(disk_t disk,char * arg,Inode *currdir,int ** history){
     if(strcmp(arg,"..") == 0){
         for(i=0; history[0][i] != 0; i+=1);
         if(i != 0){
-            int * newhistory = calloc(i-1,sizeof(int));
+            int * newhistory = calloc(i,sizeof(int));
             for(k = 0; k < i-1;k+=1){
                 newhistory[k] = history[0][k];
             }
@@ -299,7 +307,7 @@ Inode * cd2(disk_t disk,char * arg,Inode *currdir,int ** history){
             Inode * node = readInode(disk,currdir->pointers[i]);
             if(strcmp(arg,node->name) == 0 && node->isDirectory){
                 for(j = 0; history[0][j] != 0; j+=1);
-                int * newhistory = calloc(j+1,sizeof(int));
+                int * newhistory = calloc(j+2,sizeof(int));
                 for(k = 0; k < j;k+=1){
                     newhistory[k] = history[0][k];
                 }
@@ -315,6 +323,56 @@ Inode * cd2(disk_t disk,char * arg,Inode *currdir,int ** history){
     }
     printf("cd: %s: No such file or directory\n",arg);
     return currdir;
+}
+
+Inode * rm2(disk_t disk, char * arg, Inode * currdir){
+	int i,j;
+	Inode * match_inode = NULL;
+	for(i = 0; currdir->pointers[i] != 0; i+=1){
+		Inode * node = readInode(disk,currdir->pointers[i]);
+		if(strcmp(node->name,arg) == 0){
+			match_inode = node;
+			break;
+		}else
+			freeInode(node);
+	}
+	if(match_inode != NULL){
+		if(match_inode->isDirectory){
+			while( match_inode->pointers[0] != 0){
+				Inode * node = readInode(disk,match_inode->pointers[0]);
+				match_inode = rm2(disk,node->name,match_inode);
+				freeInode(node);
+			}
+		}
+		//free up blocks
+		deleteInode(disk,match_inode);
+		int * bmap = read_block_map(disk);
+		for(i = 0; match_inode->pointers[i] != 0;i+=1){
+			bmap[match_inode->pointers[i]] = 0;
+		}
+		write_block_map(disk,bmap);
+		free(bmap);
+		//remove pointer from curr dir;
+		int length;
+		for(length = 0; currdir->pointers[length] != 0; length+=1);
+		int * pointers = calloc(length,sizeof(int));
+		j=0;
+		for(i = 0; i < length; i +=1){
+			if(currdir->pointers[i] != match_inode->block){
+				pointers[j] = currdir->pointers[i];
+				j+=1;
+			}
+		}
+		pointers[j] = '\0';
+		free(currdir->pointers);
+		currdir->pointers = pointers;
+		currdir = rewriteInode(disk,currdir);
+		freeInode(match_inode);
+		return currdir;
+	}else{
+		printf("no file or folder with that name was found\n");
+		return currdir;
+	}
 }
 
 void exec_shell (disk_t disk) {
@@ -338,6 +396,7 @@ void exec_shell (disk_t disk) {
         if (strcmp (command, "ls") == 0) {
             ls (disk, currdir);
         } else if (strcmp (command, "exit") == 0) {
+			free(command);
             break;
         } else if (strcmp (command, "") == 0
                 || is_line_spaced (command)) {
@@ -362,7 +421,7 @@ void exec_shell (disk_t disk) {
 
             if (strcmp (command, "cp") == 0) {
                 if (check_file (disk, arg, currdir) == -1) {
-                    write_file (disk, arg, currdir);
+                    currdir = write_file (disk, arg, currdir);
                 } else {
                     fflush (NULL);
                     fprintf (stderr, "%s: %s: a file with that name"
@@ -373,7 +432,9 @@ void exec_shell (disk_t disk) {
                 if (check_file (disk, arg, currdir) == -1) {
                     mkdir2 (disk, &currdir, arg);
                 }
-            } else if (strcmp(command,"cd") == 0) {
+            } else if(strcmp (command, "rm") == 0 ){
+				currdir = rm2(disk,arg, currdir);
+			}else if (strcmp(command,"cd") == 0) {
 
                 // Store current directory's name
                 char *old_dir = strdup (currdir->name);
@@ -399,6 +460,7 @@ void exec_shell (disk_t disk) {
                         remove = remove - 1;
                         *remove = '\0';
                     }
+					
                 } else if (strcmp (old_dir, currdir->name) != 0) {
 
                     /*
@@ -408,6 +470,7 @@ void exec_shell (disk_t disk) {
                     strcat (curr_dir_string, "/");
                     strcat (curr_dir_string, currdir->name);
                 }
+				free(old_dir);
             } else if (strcmp (command, "cat") == 0) {
 
                 // Check if the file exists on the "disk"
@@ -426,7 +489,11 @@ void exec_shell (disk_t disk) {
                 fflush (NULL);
             }
         }
+		free(command);
     }
+	free(curr_dir_string);
+	free(history);
+	freeInode(currdir);
 }
 
 void main(int argc, char *argv[])
