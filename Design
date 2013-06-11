@@ -168,6 +168,9 @@ testdisk.c:
 	input: disk, block number of file i-node
 	ouput: nothing
 
+1)Extra credit: Make it possible to delete files.
+2)Extra credit: Make it possible to have subdirectories.
+
 6. mkdir()
 	Creates a directory within the current directory.
 	input: disk, current directory i-node, name of new directory
@@ -184,3 +187,13 @@ testdisk.c:
     Deletes a file from the current directory.
     input: disk, file or directory to remove, i-node of current directory
     output: Returns the i-node of the current directory
+    
+    
+myformat.c:
+
+Usage: myformat diskname
+-Opens disk 
+-Initializes bitmap
+-writes Superblock
+-Writes the root directory
+-Writes the free block map
