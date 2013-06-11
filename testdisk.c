@@ -402,7 +402,8 @@ void exec_shell (disk_t disk) {
                 || is_line_spaced (command)) {
             continue;
         } else if (strcmp (command, "cp") == 0
-                || strcmp (command, "cat") == 0) {
+                || strcmp (command, "cat") == 0
+                || strcmp (command, "rm") == 0) {
             fflush (NULL);
             fprintf (stderr, "%s: missing file operand\n", command);
             fflush (NULL);
