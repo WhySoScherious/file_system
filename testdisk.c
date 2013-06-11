@@ -1,543 +1,464 @@
-#include <errno.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
+#include <assert.h>
+#include <math.h>
+#include <string.h>
 #include "file_system.h"
+//#include "mydisk.h"
 
-/*
- * Gets the user input from keyboard and returns it as a string.
- */
-char * get_input () {
-    char buffer[1000];
 
-    /*
-     * Get user input and replace the newline character with a null
-     * character.
-     */
-    char *line = fgets (buffer, sizeof buffer, stdin);
-    line = strchr (buffer, '\n');
 
-    while (line == NULL || buffer[0] == '\0') {
-        line = fgets (buffer, sizeof buffer, stdin);
-        line = strchr (buffer, '\n');
-    }
+#define SUPERBLOCK 0
+#define ROOTBLOCK 1
+#define FREEBLOCK 2
+#define BITMASK 255
 
-    *line = '\0';
-    return strdup (buffer);
+/*Converts a decimal number into a binary string
+* Takes a number n
+*/
+char *int2binstr(unsigned int n){
+	int w = ceil(log2(n));
+	int i;
+	char *s = malloc(sizeof(char)*w);
+	for(i=0;w>=0;++i,--w) s[i] = ((n&(1<<w))>0)?'1':'0';
+	return s;
 }
 
-/*
- * Checks if the string passed has only whitespaces. Returns true if it
- * has only whitespaces, false otherwise.
- */
-int is_line_spaced (const char *line) {
-    int i;
-
-    for(i = 0; i < strlen (line); i++) {
-        if (line[i] != ' ') {
-            return 0;
-        }
-    }
-
-    return 1;
-}
-
-/*
- * Returns the block number of the first empty block in the free block
- * map.
- */
-int first_empty (int *blocks) {
-    int i;
-    for (i = 0; i < BLOCK_SIZE; i++) {
-        if (blocks[i] == 0) {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-/*
- * Copies a file from your Unix directory into your "disk" directory.
- */
-Inode * write_file (disk_t disk, char *file_name, Inode *root) {
-    FILE *file = fopen (file_name, "r");
-
-    if (file == NULL) {
-        fflush (NULL);
-        fprintf (stderr, "%s: %s\n", file_name, strerror (errno));
-        fflush (NULL);
-
-        return root;
-    } else {
-        unsigned char *databuf = calloc (BLOCK_SIZE, sizeof (unsigned char));
-        unsigned char *filebuf = calloc (BLOCK_SIZE * disk->size, sizeof (unsigned char));
-
-        int i = 0;
-
-        // Copy the contents of the file to the file buffer
-        while (feof (file) == 0) {
-            filebuf[i++] = fgetc(file);
-        }
-
-        filebuf[i - 1] = '\0';
-        fclose (file);
-
-        /*
-         * Determine the number of blocks the file will use on the
-         * "disk".
-         */
-        int num_blocks = ceil ((double) i / BLOCK_SIZE);
-
-        int *retublocks = read_block_map(disk);     // Free block map
-
-        /*
-         * Block number of the i-node the file will go into.
-         */
-        int i_node_block = first_empty (retublocks);
-
-        /*
-         * Set the file i-node block as used in the free block map and
-         * write the block map back to the "disk".
-         */
-        retublocks[i_node_block] = 1;
-        write_block_map (disk, retublocks);
-        int file_block;         // Block number the file will go in
-
-        // Size of the array of disk block pointers
-        int num_pointers = num_blocks + 1;
-        int pointers[num_pointers]; // Disk block pointers
-
-        pointers[num_pointers - 1] = '\0';
-
-        /*
-         * For the amount of blocks needed to write the file, find the
-         * first available block in the free block map, assign it
-         * as used, and store the block number in the disk block
-         * pointer array.
-         */
-    	
-        for (i = 0; i < num_blocks; i++) {
-            file_block = first_empty (retublocks);
-            pointers[i] = file_block;
-
-            retublocks[file_block] = 1;
-            
-        }
-		write_block_map (disk, retublocks);
-		free(retublocks);
-
-        /*
-         * Now add the i-node number of the file to the root i-node
-         * list of pointers.
-         */
-        // I-node of the file
-        Inode *node = writeInode(disk, i_node_block, pointers, false, file_name);
-
-        // Size of the number of files on the disk
-        int size = arrayLength(root->pointers);
-
-        // New array of pointers for file i-nodes.
-        int *ptrs = calloc (size + 2, sizeof (int));
-
-        // Copy the existing array of pointers to new array.
-        for (i = 0; i < size; i++) {
-            ptrs[i] = root->pointers[i];
-        }
-
-        /*
-         * Add the new i-node block number to the array of pointers and
-         * rewrite the root i-node.
-         */
-        ptrs[i++] = i_node_block;
-        ptrs[i] = '\0';
-        free(root->pointers);
-
-        root->pointers = ptrs;
-        root = rewriteInode (disk, root);
-
-        // Write the file to the "disk"
-        int k = 0;
-        for(i = 0; i < num_blocks; i++) {
-            strncpy (databuf, filebuf + k, BLOCK_SIZE);
-            writeblock (disk, pointers[i], databuf);
-            k = k + BLOCK_SIZE;
-        }
-
-        free (filebuf);
-        free (databuf);
-        freeInode(node);
-        return root;
-    }
-}
-
-/*
- * Lists the files from the "disk" directory and prints file names to
- * screen.
- */
-void ls (disk_t disk, Inode *root) {
-    int size = arrayLength (root->pointers);
-
-    int i;
-    for (i = 0; i < size; i++) {
-        Inode* node = readInode (disk, root->pointers[i]);
-        printf ("%s   ", node->name);
-		freeInode(node);
-    }
-    printf ("\n");
-}
-
-/*
- * Checks if the file exists on the disk. Returns -1 if the file
- * doesn't exist, else return i-node number of file.
- */
-int check_file (disk_t disk, char *file_name, Inode *root) {
-    int size = arrayLength (root->pointers);
-
-    int file_num = -1;
-    int i;
-    for (i = 0; i < size; i++) {
-        Inode* node = readInode (disk, root->pointers[i]);
-
-        if (strcmp (file_name, node->name) == 0) {
-            file_num = root->pointers[i];
-			freeInode(node);
-            break;
-        }
-        freeInode(node);
-    }
-
-    return file_num;
-}
-
-/*
- * Reads a file from your "disk" and prints it out to screen.
- */
-void readdisk(disk_t disk, int blocknum){
-    Inode *file = readInode (disk, blocknum);
-
-    unsigned char *databuf = malloc(disk->block_size
-            * (sizeof(unsigned char)));
-    unsigned char *filebuf = calloc((disk->block_size * file->size)
-            ,sizeof(unsigned char)); //+1 for terminator
-    int i,j,k;
-
-    /*
-     * Read the disk blocks the file are stored in and place the
-     * contents into the file buffer.
-     */
-    k = 0;
-    for (i=0; i < file->size; ++i, ++blocknum){
-        readblock (disk, file->pointers[i], databuf);
-        for(j = 0; j < (disk->block_size * sizeof (unsigned char));
-                ++j, ++k){
-            filebuf[k] = databuf[j];
-        }
-    }
-	filebuf[k] = '\0';
-
-    // Print the file to the screen
-    for (i = 0; i < disk->block_size * file->size * sizeof(unsigned char);i+=1) {
-        putchar(filebuf[i]);
-    }
-	free(databuf);
-	free(filebuf);
-    freeInode (file);
-}
-
-/*
- * Creates a directory within the current directory.
- */
-void mkdir2(disk_t disk, Inode ** currdir, char * name){
-    int * blkmap = read_block_map(disk);
-    int newblkloc;
-    int i,j;
-    for(newblkloc = 0; newblkloc < disk->size;newblkloc+=1){
-        if(blkmap[newblkloc] == 0)
-            break;
-    }
-	free(blkmap);
-    int pointers[1];
-    pointers[0] = 0;
-    freeInode(writeInode(disk,newblkloc,pointers,true,name));
-    for(i = 0; currdir[0]->pointers[i] != '\0'; i+=1);
-    int * newpointers = calloc(i+2,sizeof(int));
-    for(j = 0; j < i;j+=1){
-        newpointers[j] = currdir[0]->pointers[j];
-    }
-    newpointers[j] = newblkloc;
-    newpointers[j+1] = '\0';
-    free(currdir[0]->pointers);
-    currdir[0]->pointers = newpointers;
-
-    *currdir = rewriteInode(disk,currdir[0]);
-}
-
-/*
- * Changes the current directory in the "disk". Returns to the previous
- * level directory if "cd .." was passed. If the directory exists,
- * return the i-node of the directory, else return the current
- * directory.
- */
-Inode * cd2(disk_t disk,char * arg,Inode *currdir,int ** history){
-    int i,j,k;
-    if(strcmp(arg,"..") == 0){
-        for(i=0; history[0][i] != 0; i+=1);
-        if(i != 0){
-            int * newhistory = calloc(i,sizeof(int));
-            for(k = 0; k < i-1;k+=1){
-                newhistory[k] = history[0][k];
-            }
-            int returnto = history[0][i-1];
-            newhistory[k] = 0;
-            free(*history);
-            *history = newhistory;
-            freeInode(currdir);
-            return(readInode(disk,returnto));
-        }
-    } else {
-        for(i = 0; currdir->pointers[i] != '\0';i+=1){
-            Inode * node = readInode(disk,currdir->pointers[i]);
-            if(strcmp(arg,node->name) == 0 && node->isDirectory){
-                for(j = 0; history[0][j] != 0; j+=1);
-                int * newhistory = calloc(j+2,sizeof(int));
-                for(k = 0; k < j;k+=1){
-                    newhistory[k] = history[0][k];
-                }
-                newhistory[k] = currdir->block;
-                newhistory[k+1] = 0;
-                free(history[0]);
-                *history = newhistory;
-                freeInode(currdir);
-                return node;
-            }
-        }
-    }
-    printf("cd: %s: No such file or directory\n",arg);
-    return currdir;
-}
-
-Inode * rm2(disk_t disk, char * arg, Inode * currdir){
+/* Converts a decimal number (max 64 digits long) into a string
+*/
+char *int2str(int n){
 	int i,j;
-	Inode * match_inode = NULL;
-	for(i = 0; currdir->pointers[i] != 0; i+=1){
-		Inode * node = readInode(disk,currdir->pointers[i]);
-		if(strcmp(node->name,arg) == 0){
-			match_inode = node;
-			break;
-		}else
-			freeInode(node);
-	}
-	if(match_inode != NULL){
-		if(match_inode->isDirectory){
-			while( match_inode->pointers[0] != 0){
-				Inode * node = readInode(disk,match_inode->pointers[0]);
-				match_inode = rm2(disk,node->name,match_inode);
-				freeInode(node);
-			}
-		}
-		//free up blocks
-		deleteInode(disk,match_inode);
-		int * bmap = read_block_map(disk);
-		for(i = 0; match_inode->pointers[i] != 0;i+=1){
-			bmap[match_inode->pointers[i]] = 0;
-		}
-		write_block_map(disk,bmap);
-		free(bmap);
-		//remove pointer from curr dir;
-		int length;
-		for(length = 0; currdir->pointers[length] != 0; length+=1);
-		int * pointers = calloc(length,sizeof(int));
-		j=0;
-		for(i = 0; i < length; i +=1){
-			if(currdir->pointers[i] != match_inode->block){
-				pointers[j] = currdir->pointers[i];
-				j+=1;
-			}
-		}
-		pointers[j] = '\0';
-		free(currdir->pointers);
-		currdir->pointers = pointers;
-		currdir = rewriteInode(disk,currdir);
-		freeInode(match_inode);
-		return currdir;
-	}else{
-		printf("no file or folder with that name was found\n");
-		return currdir;
-	}
+	char buf[64];
+	for(i=0;n>0;++i,n/=10) buf[i] = n%10+48;
+	char *string = malloc(sizeof(char)*i+1);
+	i -=1;
+	for(j=0;i>=0;--i,++j) string[j] = buf[i];
+	string[j] = '\0';
+	return string;
 }
 
-void exec_shell (disk_t disk) {
-    Inode *currdir;
-
-    // Set the current directory to the root
-    currdir = readInode(disk, 1);
-
-    int *history = calloc (2, sizeof (int));
-    history[0] = 1;
-    history[1] = 0;
-
-    char *curr_dir_string = malloc (BLOCK_SIZE);
-    curr_dir_string[0] = '\0';
-
-    while (1) {
-        printf ("\n~%s\n", curr_dir_string);
-        printf ("$ ");
-        char *command = get_input();
-
-        if (strcmp (command, "ls") == 0) {
-            ls (disk, currdir);
-        } else if (strcmp (command, "exit") == 0) {
-			free(command);
-            break;
-        } else if (strcmp (command, "") == 0
-                || is_line_spaced (command)) {
-            continue;
-        } else if (strcmp (command, "cp") == 0
-                || strcmp (command, "cat") == 0
-                || strcmp (command, "rm") == 0) {
-            fflush (NULL);
-            fprintf (stderr, "%s: missing file operand\n", command);
-            fflush (NULL);
-        } else if (strstr (command, " ") == NULL) {
-
-            // If an invalid command was passed, print error
-            fflush (NULL);
-            fprintf (stderr, "%s: command not found\n", command);
-            fflush (NULL);
-        } else {
-
-            // Parse the argument from the user input
-            char *cmd = strstr (command, " ");
-            *cmd = '\0';
-            char *arg = cmd + 1;
-
-            if (strcmp (command, "cp") == 0) {
-                if (check_file (disk, arg, currdir) == -1) {
-                    currdir = write_file (disk, arg, currdir);
-                } else {
-                    fflush (NULL);
-                    fprintf (stderr, "%s: %s: a file with that name"
-                            " already exits\n", command, arg);
-                    fflush (NULL);
-                }
-            } else if (strcmp (command,"mkdir") == 0) {
-                if (check_file (disk, arg, currdir) == -1) {
-                    mkdir2 (disk, &currdir, arg);
-                }
-            } else if(strcmp (command, "rm") == 0 ){
-				currdir = rm2(disk,arg, currdir);
-			}else if (strcmp(command,"cd") == 0) {
-
-                // Store current directory's name
-                char *old_dir = strdup (currdir->name);
-
-                // Set current directory to argument passed
-                currdir = cd2 (disk, arg, currdir, &history);
-
-                /*
-                 * If the current directory is root, print out nothing
-                 * signifying root directory.
-                 */
-                if (strcmp (currdir->name, "/") == 0) {
-                    curr_dir_string[0] = '\0';
-                } else if (strcmp (arg, "..") == 0) {
-
-                    /*
-                     * If changing to the previous directory, remove
-                     * the old directory from the current directory
-                     * string printout.
-                     */
-                    char *remove = strstr (curr_dir_string, old_dir);
-                    if (remove != NULL) {
-                        remove = remove - 1;
-                        *remove = '\0';
-                    }
-					
-                } else if (strcmp (old_dir, currdir->name) != 0) {
-
-                    /*
-                     * If the directory changed, and the directory to
-                     * the current directory string.
-                     */
-                    strcat (curr_dir_string, "/");
-                    strcat (curr_dir_string, currdir->name);
-                }
-				free(old_dir);
-            } else if (strcmp (command, "cat") == 0) {
-
-                // Check if the file exists on the "disk"
-                int file_num = check_file (disk, arg, currdir);
-
-                if (file_num != -1) {
-                    readdisk (disk, file_num);
-                } else {
-                    fflush (NULL);
-                    fprintf (stderr, "%s: No such file or directory\n", arg);
-                    fflush (NULL);
-                }
-            } else {
-                fflush (NULL);
-                fprintf (stderr, "%s: command not found\n", command);
-                fflush (NULL);
-            }
-        }
-		free(command);
-    }
-	free(curr_dir_string);
-	free(history);
-	freeInode(currdir);
+/* Converts a character string of decimal numbers to an int
+*/
+int str2int(char *s){
+	int i,n;
+	for(i=n=0;s[i]!='\0';++i,n*=10) n+=s[i]-48;
+	return n/10;
 }
 
-void main(int argc, char *argv[])
+/* Returns the length of a string
+*/
+int length(char *s){
+	int i;
+	for(i=0;s[i]!='\0';++i);
+	return i;
+}
+
+/* Copies a stringa of arbitrary length into a fixed length databuffer.
+* Pass in a buffer that has already been malloc'd to block size:
+*    unsigned char *databuf = malloc(disk->block_size);
+* The second is an array of strings to be copied where
+* THE LAST STRING MUST BE A NULL!!!!!
+* The final parameter represents how many bytes into the buffer you
+* wish to put your string.
+* See write_super_block for an example.
+*/
+void copy2buf(unsigned char *databuf, unsigned char **strings, int loc){
+	int i,j;
+	for(i=0;strings[i]!=NULL;++i)
+		for(j=0;strings[i][j]!='\0';++j,++loc) databuf[loc] = strings[i][j];
+	databuf[loc] = '\0';
+}
+
+/* Place a larger number up to 32 bits into buffer at location loc where e
+* is the value.
+*/
+void emplace_buf(unsigned char *databuf, unsigned int e, unsigned int bytes, unsigned int loc){
+	int i;
+	for(i=8*(--bytes);i>=0;i-=8,++loc) databuf[loc] = (e&(BITMASK<<i))>>i; //error: âBITMASKâ undeclared (first use in this function)
+}
+
+unsigned int read_buf(unsigned char *databuf, unsigned int bytes, unsigned int loc){
+	unsigned int e=0;
+	for(;bytes>0;--bytes,++loc,e<<=8) e+=databuf[loc];
+	return e>>8;
+}
+
+void read_super_block(disk_t disk){
+	printf("Reading super block...");
+	unsigned char *databuf = malloc(disk->block_size);
+	readblock(disk,SUPERBLOCK,databuf);
+	superblock.size = read_buf(databuf,4,0);
+	superblock.rootblock = databuf[4];
+	superblock.freeblock = databuf[5];
+	superblock.datablock = databuf[6];
+	free(databuf);
+	printf("%d %d %d %d",superblock.size,superblock.rootblock,
+		superblock.freeblock,superblock.datablock);
+	printf("\n");
+}
+
+void write_super_block(disk_t disk){
+	printf("Writing super block...");
+	unsigned char *databuf = calloc(disk->block_size,sizeof(char) );
+	//Info 0-3:SIZE 4:RDIR 5:FBM 6:DATA
+	emplace_buf(databuf,disk->size,4,0);
+	databuf[4] = ROOTBLOCK;
+	databuf[5] = FREEBLOCK;
+	databuf[6] = ceil(disk->size/disk->block_size)+1+FREEBLOCK;
+	writeblock(disk,SUPERBLOCK,databuf);
+	free(databuf);
+	printf("\n");
+}
+
+// Inodes which represent directories should be size = 0, pointers will be to other inodes
+// the max # of pointers is (BLOCK_SIZE-3-(ceil(log10(disk_size))*2)/(ceil(log10(disk_size))+1) 
+// if you have more pointers than that, then it is your job to create an Inode with the remaining
+// pointers, write the inode, and then give the block location of that inode to the previous Inode.
+// Additional inodes should have size = to the number of blocks in them
+Inode* createInode(int size, int * pointers,bool directory, int block, char * name){
+	Inode* node = malloc(sizeof(Inode));
+	node->size = size;
+	node->pointers = pointers;
+	node->isDirectory = directory;
+	node->block = block;
+	node->name = name;
+	return node;
+}
+
+//turns a list of ints into a char array of numbers separated by commas. Will end in a comma.
+//needs to be freed
+char * intArray2charArray(int * numbers){
+	char * str = malloc(sizeof(char) * 512);
+	str[0] = '\0';
+	int num = numbers[0];
+	int i = 0;
+	while(num != '\0'){
+		char * num2str = int2str(num);
+		strcat(str,num2str);
+		free(num2str);
+		strcat(str,",");
+		num = numbers[i+1];
+		i +=1;
+	}
+
+	char *s = malloc(sizeof(char) * (length(str)+1));
+
+	for(i = 0; str[i] != '\0';i+=1){
+		s[i] = str[i];
+	}
+
+	s[i] = '\0'; //cpy '\0';
+
+	free(str);
+	return  s;
+}
+
+int arrayLength(int * intarray){
+	int i;
+	for(i = 0; intarray[i] != '\0';i+=1);
+	return i;
+}
+
+Inode * rewriteInode(disk_t disk, Inode* inode){
+	deleteInode(disk,inode);
+	Inode* newinode = writeInode(disk,inode->block,inode->pointers,inode->isDirectory,inode->name);
+	freeInode(inode);
+	return newinode;
+}
+
+void deleteInode(disk_t disk, Inode* inode){
+	char * databuf = malloc(sizeof(char) * disk->block_size);
+	readblock(disk,inode->block,databuf);
+	int i;
+	bool gotsize = false;
+	bool gotpointers = false;
+	bool gotlink = false;
+	bool gotname = false;
+	int numberbufIndex = 0;
+	char * numberbuf = malloc(sizeof(char) * 16);
+	for(i = 0; databuf[i] != '\0' && i < disk->block_size;i+=1){
+		if(!gotsize){
+			if(databuf[i] == '\n'){
+				gotsize = true;
+			}
+		}else if(!gotpointers){
+			if(databuf[i] == '\n'){
+				gotpointers = true; 
+			}
+		}else if(!gotname){
+			if(databuf[i] == '\n'){
+				gotname = true; 
+			}
+		}else{
+			gotlink = true;
+			numberbuf[numberbufIndex] = databuf[i];
+			numberbufIndex +=1;
+		}
+	}
+	int link;
+	if(gotlink){
+		numberbuf[numberbufIndex] = '\0';
+		link = str2int(numberbuf);
+		Inode * newinode = readInode(disk,link);
+		deleteInode(disk,newinode);
+		freeInode(newinode);
+	}
+	int * blockmap = read_block_map(disk);
+	blockmap[inode->block] = 0;
+	write_block_map(disk,blockmap);
+	free(blockmap);
+	free(databuf);
+	free(numberbuf);
+}
+
+
+
+//max name size = 15
+//will modify block_map
+Inode* writeInode(disk_t disk, int block, int * gpointers,bool directory, char * nametemp){
+	int * blkmap = read_block_map(disk);
+	blkmap[block] = 1;
+	write_block_map(disk,blkmap);
+	
+	int size = arrayLength(gpointers);
+	int maxsize = (disk->block_size-20-(ceil(log10(disk->size))*2)/(ceil(log10(disk->size))+1));
+	int * pointers = malloc(sizeof(int) * (size+1));
+	int i,j;
+	int strlength = length(nametemp);
+	char * name = malloc(sizeof(char)*  16);
+	for(i = 0; i < 15 && nametemp[i] != '\0';i+=1){
+		name[i] = nametemp[i];
+	}
+	name[i] = '\0';
+	int * wpointers = malloc(sizeof(int) * (size + 1));
+	for(i = 0; i < size; i+=1){
+		pointers[i] = gpointers[i];
+		wpointers[i] = gpointers[i];
+	}
+	wpointers[i] = '\0';
+	pointers[i] = '\0';
+	char * potSize;
+	if(size > (maxsize)){ //-4 for 3 \n and 1 \0 - 16 for name length
+		int * newpointers = malloc(sizeof(int) * (maxsize+1));
+		int * extrapointers = malloc(sizeof(int) * (size-maxsize+1));
+		for(i = 0; i < maxsize;i+=1){
+			newpointers[i] = pointers[i];
+		}
+		newpointers[i] = '\0';
+		free(wpointers);
+		wpointers = newpointers;
+		for(j = 0; j <size-maxsize;j+=1){
+			extrapointers[j] = pointers[i];
+			i+=1;
+		}
+		
+		extrapointers[j] = '\0';
+		int newblk;
+		
+		for(i = 0; i < disk->size;i+=1){
+			if(blkmap[i] == 0){
+				newblk = i;
+				break;
+			}
+		}
+		freeInode(writeInode(disk,newblk,extrapointers,directory,name));
+	}
+	unsigned char *strings[6];
+	potSize = int2str(size);
+	strings[0] = (directory)? "0" : potSize;
+
+	char * list = intArray2charArray(wpointers);
+	char * pntrs = malloc(sizeof(char) * (length(list)+2));
+	pntrs[0] = '\n';
+
+	pntrs[1] = '\0';
+	strcat(pntrs,list);
+	strings[1] = pntrs;
+	strings[2] = "\n";
+	strings[3] = name;
+	strings[4] = "\n";
+	strings[5] = NULL;
+	
+	unsigned char *databuf = calloc(disk->block_size, sizeof(unsigned char) );
+	copy2buf(databuf,strings,0);
+	writeblock(disk,block,databuf);
+	free(list);
+	free(pntrs);
+	free(databuf);
+	//free(name);
+	free(blkmap);
+	free(potSize);
+	free(wpointers);
+	return createInode(size,pointers,directory,block,name);
+}
+
+Inode* readInode(disk_t disk, int block){
+	char * databuf = malloc(sizeof(char) * disk->block_size);
+	readblock(disk,block,databuf);
+	int size;
+	int i,j;
+	char * name;
+	bool gotsize = false;
+	bool gotpointers = false;
+	bool gotlink = false;
+	bool gotname = false;
+	int numberbufIndex = 0;
+	char * numberbuf = malloc(sizeof(char) * 16);
+	int * pointers = malloc(sizeof(int) * disk->size);
+	int pointersIndex = 0;
+	for(i = 0; databuf[i] != '\0' && i < disk->block_size;i+=1){
+		if(!gotsize){
+			if(databuf[i] == '\n'){
+				numberbuf[numberbufIndex] = '\0';
+				size = str2int(numberbuf);
+				numberbufIndex = 0;
+				gotsize = true;
+			}else{
+				numberbuf[numberbufIndex] = databuf[i];
+				numberbufIndex +=1;
+			}
+		}else if(!gotpointers){
+			if(databuf[i] == '\n'){
+				gotpointers = true; 
+				numberbuf[0] = '\0';
+				numberbufIndex = 0;
+			}else{
+				if(databuf[i] == ','){
+					numberbuf[numberbufIndex] = '\0';
+					pointers[pointersIndex] = str2int(numberbuf);
+					numberbufIndex = 0;
+					pointersIndex +=1;
+				}else{
+					numberbuf[numberbufIndex] = databuf[i];
+					numberbufIndex +=1;
+				}
+			}
+		}else if(!gotname){
+			if(databuf[i] == '\n'){
+				name = malloc(sizeof(char) * (numberbufIndex+1));
+				for(j = 0; j < numberbufIndex; j+=1){
+					name[j] = numberbuf[j];
+				}
+				name[j] = '\0';
+				gotname = true;
+				numberbufIndex = 0;
+			}else{
+				numberbuf[numberbufIndex]= databuf[i];
+				numberbufIndex +=1;
+			}
+		}
+		else{
+			gotlink = true;
+			numberbuf[numberbufIndex] = databuf[i];
+			numberbufIndex +=1;
+		}
+	}
+	int link;
+	if(gotlink){
+		numberbuf[numberbufIndex] = '\0';
+		link = str2int(numberbuf);
+		Inode * newinode = readInode(disk,link);
+		for(i = 0; newinode->pointers[i] != '\0';i+=1){
+			pointers[pointersIndex] = newinode->pointers[i];
+			pointersIndex+=1;
+		}
+		freeInode(newinode);
+	}
+	int * pointersSmall = malloc(sizeof(int) * (pointersIndex+1));
+	for(i = 0; i < pointersIndex;i+=1){
+		pointersSmall[i] = pointers[i];
+	}
+	pointersSmall[i] = '\0';
+	Inode * node = createInode(size,pointersSmall,(size ==0)? true : false, block,name);
+	free(numberbuf);
+	free(databuf);
+	free(pointers);
+	//free(pointersSmall);
+	return node;
+
+}
+
+
+void freeInode(Inode * inode){
+	free(inode->pointers);
+	free(inode->name);
+	free(inode);
+}
+
+void write_root_dir(disk_t disk){
+    int *pointers = calloc (1, sizeof (int));
+    pointers[0] = '\0';
+	Inode * node = writeInode(disk,1,pointers,true,"/");
+	free(pointers);
+	freeInode(node);
+}
+
+void write_block_map(disk_t disk, int * bmap){
+	//printf("Writing free block map...");
+	//printf("\n");
+	int i;
+	char *disk_name;
+	unsigned char *databuf;
+	/* disk with n blocks requires a bitmap with n bits
+	bitmap size is enough blocks to hold n bits, starts at block 2 */
+	int *bitmap;
+
+
+	databuf = calloc(disk->block_size,sizeof(char) );
+
+
+	/*Initially every entry in bitmap is 0(unsused) 
+	Chase: This is not true: the superblock, rootdir and bitmap blocks should all be filled with 1s. 
+	To make this function work in more than one case it should just write the bmap given, 
+	and the user can fill it with 0s and 1s to start*/
+	//i = block number
+	int bitmapindex = 0;
+	for(i = 2; bitmapindex < disk->size;i+=1){
+		int bufindex = 0;
+		while(bufindex < disk->block_size && bitmapindex < disk->size){
+			databuf[bufindex] = (bmap[bitmapindex] == 0)? '0' : '1';
+			bufindex +=1;
+			bitmapindex +=1;
+		}
+		if(bitmapindex == disk->size && bufindex < disk->block_size){
+			databuf[bufindex] = '\0'; //terminate
+			//printf("terminated\n");
+		}
+		//printf("wrote blockmap %s to %d\n",databuf,bitmapindex);
+		writeblock(disk,i,databuf);
+	}
+
+	free(databuf);
+
+
+}
+
+
+/*should read in thsese blocks and return a list of ints representing 
+each bit*/
+int * read_block_map(disk_t disk)
 {
-    char *disk_name;
-    disk_t disk;
-    unsigned char *databuf;
-    int i, j;
 
-    // Read the parameters
-    if(argc != 2) {
-        printf("Usage: testdisk <disk_name>\n");
-        exit(-1);
-    }
+	int i, j, L= 0;
+	unsigned char *databuf = malloc(sizeof(char) * disk->block_size);
+	int *buf = malloc(sizeof(int) * disk->size);
 
-    disk_name = (char *)argv[1];
 
-    // Open the disk
-    disk = opendisk(disk_name);
+	for(i = 2; L < disk->size; i+=1){
+		readblock(disk, i, databuf);
 
-    //Read and write super block
-    write_super_block(disk);
-    read_super_block(disk);
+		for(j = 0; databuf[j] != '\0' && j < disk->block_size; j+=1){
 
-    // Set up a buffer for writing and reading
-    databuf = malloc(disk->block_size);
+			// buf[L] = str2int(databuf[j]); // instead of databuf[j], we should just have databuf since str2int takes in a char *
+			buf[L] = (databuf[j] == '0')? 0 : 1;
+			// printf("reading %d \n",str2int(data  
+			L +=1;
 
-    // Fill the first 5 blocks in bitmap as used
-    int * blocks = calloc(disk->size,sizeof(int));
+		}
+	}
 
-    // Set the corresponding blocks as used with a '1'
-    for(i = 0; i < 5; i+=1){
-        blocks[i] = 1;
-    }
-	printf("writing initial block map\n");
-    write_block_map(disk,blocks);
+	free(databuf);
 
-    free(blocks);
-
-    // Write the root directory
-    printf ("Writing root directory\n");
-    write_root_dir (disk);
-
-    // Execute the shell program
-
-	printf("Executing shell interface\n");
-    exec_shell (disk);
-
-    free(disk);
-    free(databuf);
-    exit(0);
+	return buf; 
 }
