@@ -184,7 +184,7 @@ testdisk.c:
 			directory, else return the current directory.
 
 8. rm()
-    Deletes a file from the current directory.
+    Deletes a file (or recursively deletes a folder) from the current directory.
     input: disk, file or directory to remove, i-node of current directory
     output: Returns the i-node of the current directory
     
@@ -208,4 +208,6 @@ cat [file] - A program that reads a file from your "disk" and prints it out.
 
 cd [directory] - A program that creates a subdirectory in the current directory. 
 
-rm [file] - Deletes a file from the current directory. exit - Exits the program.
+rm [file] - Deletes a file or folder from the current directory. 
+
+exit - Exits the program.
