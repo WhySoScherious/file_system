@@ -161,7 +161,7 @@ testdisk.c:
 	Checks if the file exists on the disk.
 	input: "disk", file name, directory i-node
 	output: Returns -1 if the file doesn't exist, else return i-node
-					number of file.
+			number of file.
 
 5. readdisk()  
 	Reads a file from your "disk" and prints it out to screen.
@@ -177,5 +177,10 @@ testdisk.c:
 	Changes the current directory in the "disk".
 	input: disk, directory to go to, i-node of current directory
 	output: Returns to the previous level directory if "cd .." was
-					passed. If the directory exists, return the i-node of the
-					directory, else return the current directory.
+			passed. If the directory exists, return the i-node of the
+			directory, else return the current directory.
+
+8. rm()
+    Deletes a file from the current directory.
+    input: disk, file or directory to remove, i-node of current directory
+    output: Returns the i-node of the current directory
