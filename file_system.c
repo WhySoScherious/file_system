@@ -395,8 +395,8 @@ void write_root_dir(disk_t disk){
 }
 
 void write_block_map(disk_t disk, int * bmap){
-	printf("Writing free block map...");
-	printf("\n");
+	//printf("Writing free block map...");
+	//printf("\n");
 	int i;
 	char *disk_name;
 	unsigned char *databuf;
@@ -423,9 +423,9 @@ void write_block_map(disk_t disk, int * bmap){
 		}
 		if(bitmapindex == disk->size && bufindex < disk->block_size){
 			databuf[bufindex] = '\0'; //terminate
-			printf("terminated\n");
+			//printf("terminated\n");
 		}
-		printf("wrote blockmap %s to %d\n",databuf,bitmapindex);
+		//printf("wrote blockmap %s to %d\n",databuf,bitmapindex);
 		writeblock(disk,i,databuf);
 	}
 
