@@ -70,7 +70,7 @@ Inode * write_file (disk_t disk, char *file_name, Inode *root) {
         fprintf (stderr, "%s: %s\n", file_name, strerror (errno));
         fflush (NULL);
 
-        return -1;
+        return root;
     } else {
         unsigned char *databuf = calloc (BLOCK_SIZE, sizeof (unsigned char));
         unsigned char *filebuf = calloc (BLOCK_SIZE * disk->size, sizeof (unsigned char));
@@ -153,11 +153,6 @@ Inode * write_file (disk_t disk, char *file_name, Inode *root) {
          */
         ptrs[i++] = i_node_block;
         ptrs[i] = '\0';
-		printf("printing POINTERS:");
-		for(i = 0; ptrs[i] != '\0';i+=1){
-			printf("%d,",ptrs[i]);
-		}
-		printf("\n");
         free(root->pointers);
 
         root->pointers = ptrs;
@@ -208,6 +203,7 @@ int check_file (disk_t disk, char *file_name, Inode *root) {
 
         if (strcmp (file_name, node->name) == 0) {
             file_num = root->pointers[i];
+			freeInode(node);
             break;
         }
         freeInode(node);
@@ -224,8 +220,8 @@ void readdisk(disk_t disk, int blocknum){
 
     unsigned char *databuf = malloc(disk->block_size
             * (sizeof(unsigned char)));
-    unsigned char *filebuf = malloc(disk->block_size * file->size
-            * sizeof(unsigned char));
+    unsigned char *filebuf = calloc((disk->block_size * file->size)
+            ,sizeof(unsigned char)); //+1 for terminator
     int i,j,k;
 
     /*
@@ -240,13 +236,14 @@ void readdisk(disk_t disk, int blocknum){
             filebuf[k] = databuf[j];
         }
     }
+	filebuf[k] = '\0';
 
     // Print the file to the screen
-    for (i = 0; i < disk->block_size * file->size * sizeof(unsigned char)
-            || filebuf[i] == '\0'; ++i) {
+    for (i = 0; i < disk->block_size * file->size * sizeof(unsigned char);i+=1) {
         putchar(filebuf[i]);
     }
-
+	free(databuf);
+	free(filebuf);
     freeInode (file);
 }
 
@@ -298,12 +295,10 @@ Inode * cd2(disk_t disk,char * arg,Inode *currdir,int ** history){
             free(*history);
             *history = newhistory;
             freeInode(currdir);
-            printf("returning to %d\n",returnto);
             return(readInode(disk,returnto));
         }
     } else {
         for(i = 0; currdir->pointers[i] != '\0';i+=1){
-            printf("looking for pointer %d\n",currdir->pointers[i]);
             Inode * node = readInode(disk,currdir->pointers[i]);
             if(strcmp(arg,node->name) == 0 && node->isDirectory){
                 for(j = 0; history[0][j] != 0; j+=1);
@@ -316,7 +311,6 @@ Inode * cd2(disk_t disk,char * arg,Inode *currdir,int ** history){
                 free(history[0]);
                 *history = newhistory;
                 freeInode(currdir);
-                printf("found\n");
                 return node;
             }
         }
@@ -529,7 +523,7 @@ void main(int argc, char *argv[])
     for(i = 0; i < 5; i+=1){
         blocks[i] = 1;
     }
-
+	printf("writing initial block map\n");
     write_block_map(disk,blocks);
 
     free(blocks);
@@ -539,6 +533,8 @@ void main(int argc, char *argv[])
     write_root_dir (disk);
 
     // Execute the shell program
+
+	printf("Executing shell interface\n");
     exec_shell (disk);
 
     free(disk);
